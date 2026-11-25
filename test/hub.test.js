@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -9,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { unzipSync } from 'fflate';
 import { buildSite, createManifest } from '../web/build-manifest.mjs';
-import { fileUrl, generateInstallCommand, getSelection, getSkillInvocations, normalizeBaseUrl, targets } from '../web/hub-core.js';
+import { fileUrl, generateInstallCommand, getAgentPackage, getSelection, getSkillInvocations, normalizeBaseUrl, targets } from '../web/hub-core.js';
 
 const exec = promisify(execFile);
 
@@ -197,10 +198,52 @@ test('ZIP enthält genau den gewählten Skill-Ordner mit Begleitdateien, ohne Ab
   for (const file of skills[workflow].files) {
     assert.deepEqual(Buffer.from(entries[`${workflow}/${file}`]), fs.readFileSync(path.join(repo, source, file)));
   }
-  assert.deepEqual(fs.readdirSync(path.join(repo, 'dist/downloads')).sort(), ['mh-beispiel.zip', `${workflow}.zip`].sort());
   fs.unlinkSync(script);
   buildSite(repo);
   assert.equal(Object.hasOwn(unzipSync(fs.readFileSync(path.join(repo, 'dist', skills[workflow].archive))), `${workflow}/scripts/start.sh`), false);
+});
+
+test('Projektpakete bewahren Zielpfade und enthalten verschachtelte Abhängigkeiten; der Prompt verlinkt dasselbe ZIP', (t) => {
+  const repo = tempDir(t);
+  const id = 'mh-wf-spring-boot';
+  const category = 'Java/Spring Boot';
+  addSkill(repo, `workflows/${category}`, id, 'Nutze `mh-java`.');
+  addSkill(repo, 'skills/Java', 'mh-java', 'Nutze `mh-tests`.');
+  addSkill(repo, 'skills/Qualität', 'mh-tests', 'Nutze `mh-java`.');
+  addSkill(repo, 'skills/Java', 'mh-unrelated');
+  write(repo, '_SKILLS/skills/Qualität/mh-tests/references/Tests.md', 'Begleitdatei');
+  write(repo, '_SKILLS/project-templates/java/AGENTS.md', '# Projekt');
+  const { skills } = buildSite(repo, 'https://separate-downloads.example/');
+  const skill = skills[id];
+  const pageUrl = 'https://hub.example/team/index.html';
+  const expected = { claude: 'Claude Code', opencode: 'OpenCode', codex: 'Codex' };
+  for (const [tool, name] of Object.entries(expected)) {
+    const { archive, projectPath, sha256 } = skill.packages[tool];
+    const prefix = targets[tool];
+    const file = (folder, relative = 'SKILL.md') =>
+      `${prefix}/${tool === 'claude' ? folder.split('/').at(-1) : folder}/${relative}`;
+    assert.equal(archive, `downloads/${tool}/${category}/${id}.zip`);
+    assert.equal(`${projectPath}/SKILL.md`, file(`${category}/${id}`));
+    const bytes = fs.readFileSync(path.join(repo, 'dist', archive));
+    const entries = unzipSync(bytes);
+    assert.deepEqual(Object.keys(entries).sort(), [
+      file(`${category}/${id}`), file('Java/mh-java'), file('Qualität/mh-tests'),
+      file('Qualität/mh-tests', 'references/Tests.md'),
+    ].sort());
+    assert.equal(Buffer.from(entries[file('Qualität/mh-tests', 'references/Tests.md')]).toString(), 'Begleitdatei');
+    assert.equal(sha256, createHash('sha256').update(bytes).digest('hex'));
+    const { url, prompt } = getAgentPackage(skill, tool, pageUrl);
+    assert.equal(url, `https://hub.example/team/downloads/${tool}/Java/Spring%20Boot/${id}.zip`);
+    assert.ok(prompt.includes(`für ${name} im aktuellen Projekt`));
+    assert.ok(prompt.includes('mh-java, mh-tests'));
+    assert.ok(prompt.includes(`ZIP: ${url}\nSHA-256: ${sha256}`));
+    assert.ok(prompt.includes(`${projectPath}/SKILL.md`));
+  }
+  assert.deepEqual(Object.keys(unzipSync(fs.readFileSync(path.join(repo, 'dist', skills['mh-unrelated'].packages.opencode.archive)))),
+    ['.opencode/skills/Java/mh-unrelated/SKILL.md']);
+  assert.deepEqual(buildSite(repo).skills[id].packages, skill.packages);
+  assert.equal(getAgentPackage(skill, 'toString', pageUrl), null);
+  assert.equal(getAgentPackage(undefined, 'opencode', pageUrl), null);
 });
 
 const parentTemplatePath = 'project-templates/entwicklung/java/AGENTS.md';

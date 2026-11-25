@@ -6,6 +6,34 @@ export const targets = Object.freeze({
   codex: '.agents/skills',
 });
 
+export const toolNames = Object.freeze({
+  claude: 'Claude Code',
+  opencode: 'OpenCode',
+  codex: 'Codex',
+});
+
+export function getAgentPackage(skill, tool, pageUrl) {
+  const artifact = Object.hasOwn(targets, tool) && skill?.packages?.[tool];
+  if (!artifact) return null;
+  const url = new URL(pathParts(artifact.archive).map(encodeURIComponent).join('/'), pageUrl).href;
+  const kind = skill.type === 'workflow' ? 'den Workflow' : 'den Skill';
+  const dependencies = skill.allDeps.length
+    ? ` samt den enthaltenen Abhängigkeiten (${skill.allDeps.join(', ')})`
+    : '';
+  return {
+    url,
+    prompt: [
+      `Installiere ${kind} \`${skill.id}\`${dependencies} für ${toolNames[tool]} im aktuellen Projekt, nicht global.`,
+      '',
+      `ZIP: ${url}`,
+      `SHA-256: ${artifact.sha256}`,
+      '',
+      `Lade das ZIP herunter und verifiziere die SHA-256-Prüfsumme. Prüfe vor dem Entpacken, dass es nur reguläre Dateien und Verzeichnisse unter \`${targets[tool]}/\` enthält. Übernimm die Ordnerstruktur relativ zum Projektstamm; die Hauptdatei liegt unter \`${artifact.projectPath}/SKILL.md\`.`,
+      'Prüfe, ob dieselben Skill-IDs bereits an anderer Stelle installiert sind, und frage bei Konflikten nach, bevor du Dateien ersetzt oder duplizierst. Lass AGENTS.md unverändert und führe keine Skripte aus dem Paket aus.',
+    ].join('\n'),
+  };
+}
+
 export const terminals = Object.freeze({
   bash: 'Bash',
   powershell: 'PowerShell',

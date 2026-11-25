@@ -1,6 +1,6 @@
 import { marked } from './vendor/marked.js';
 import DOMPurify from './vendor/purify.mjs';
-import { fileUrl, generateInstallCommand, getSelection, getSkillInvocation, getSkillInvocations, splitFrontmatter, targets, terminals } from './hub-core.js';
+import { fileUrl, generateInstallCommand, getAgentPackage, getSelection, getSkillInvocation, getSkillInvocations, splitFrontmatter, targets, terminals, toolNames } from './hub-core.js';
 
 const $ = (id) => document.getElementById(id);
 const element = (tag, text, className) => {
@@ -77,14 +77,35 @@ function renderTree(nodes, parent) {
   parent.append(list);
 }
 
-async function copyField(field, status) {
+async function copyField(field, status, success = 'Kopiert.') {
   try {
     await navigator.clipboard.writeText(field.value);
-    status.textContent = 'Kopiert.';
+    status.textContent = success;
   } catch {
+    const wasHidden = field.hidden;
+    const control = document.activeElement;
+    field.hidden = false;
+    field.focus();
     field.select();
-    status.textContent = document.execCommand('copy') ? 'Kopiert.' : 'Befehl markiert. Bitte manuell kopieren.';
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch { /* Keep the text selected for manual copying. */ }
+    if (copied && wasHidden) {
+      field.hidden = true;
+      control?.focus();
+    }
+    status.textContent = copied ? success : 'Text markiert. Bitte manuell kopieren.';
   }
+}
+
+function actionIcon(id) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('class', 'action-icon');
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS(ns, 'use');
+  use.setAttribute('href', `#icon-${id}`);
+  svg.append(use);
+  return svg;
 }
 
 function updateInvocations(tool) {
@@ -100,8 +121,10 @@ function updateInvocations(tool) {
     field.value = invocation;
     field.readOnly = true;
     field.setAttribute('aria-label', `Skill-Aufruf ${invocation}`);
-    const copy = button('Aufruf kopieren', 'quiet');
-    copy.setAttribute('aria-label', `Aufruf ${invocation} kopieren`);
+    const copy = button(undefined, 'quiet icon-action');
+    copy.title = `Aufruf ${invocation} kopieren`;
+    copy.setAttribute('aria-label', copy.title);
+    copy.append(actionIcon('copy'));
     copy.addEventListener('click', () => copyField(field, status));
     item.append(field, copy);
     return item;
@@ -146,24 +169,37 @@ function setActivePreview(name) {
   activePreview.setAttribute('aria-current', 'true');
 }
 
-function updatePreviewInvocation() {
+function updatePreviewForTool() {
+  const tool = $('tool').value;
+  const artifact = getAgentPackage(previewSkill, tool, document.baseURI);
+  const prompt = $('agent-prompt');
+  $('prompt-status').textContent = '';
+  prompt.hidden = true;
+  prompt.value = artifact?.prompt ?? '';
+  $('package-actions').hidden = !artifact;
+  if (artifact) {
+    const download = $('skill-download');
+    download.href = artifact.url;
+    download.download = `${previewSkill.id}.zip`;
+    download.title = `ZIP für ${toolNames[tool]} herunterladen`;
+    download.setAttribute('aria-label', download.title);
+    $('copy-prompt').title = `Agenten-Prompt kopieren (${toolNames[tool]})`;
+  }
   $('preview-invocation').hidden = !previewSkill;
   if (!previewSkill) return;
-  const tool = $('tool');
-  const { automatic, manual } = previewSkill.invocation[tool.value];
-  $('preview-invocation-label').textContent = `Aufruf in ${tool.selectedOptions[0].textContent}`;
+  const { automatic, manual } = previewSkill.invocation[tool];
+  $('preview-invocation-label').textContent = `Aufruf in ${toolNames[tool]}`;
   $('preview-invocation-mode').textContent = automatic
     ? 'Bei passender Aufgabe automatisch möglich'
     : manual ? 'Nur manuell' : 'Nicht aufrufbar';
   $('preview-manual-invocation').hidden = !manual;
-  if (manual) $('preview-invocation-command').textContent = getSkillInvocation(tool.value, previewSkill.id);
+  if (manual) $('preview-invocation-command').textContent = getSkillInvocation(tool, previewSkill.id);
 }
 
 function showProjectTemplate(template, name) {
   setActivePreview(name);
   previewSkill = undefined;
-  updatePreviewInvocation();
-  $('skill-download').hidden = true;
+  updatePreviewForTool();
   $('preview-title').textContent = template.title;
   $('skill-type').textContent = 'Projektvorlage';
   $('skill-type').hidden = false;
@@ -178,16 +214,11 @@ function showSkill(id) {
   const skill = manifest.skills[id];
   setActivePreview(skillRows.get(id).name);
   previewSkill = skill;
-  updatePreviewInvocation();
+  updatePreviewForTool();
   $('preview-title').textContent = id;
   $('skill-type').textContent = skill.type === 'workflow' ? 'Workflow' : 'Skill';
   $('skill-type').hidden = false;
   $('description').textContent = skill.description;
-  const download = $('skill-download');
-  download.href = `./${skill.archive}`;
-  download.download = `${id}.zip`;
-  download.setAttribute('aria-label', `ZIP herunterladen: ${id}`);
-  download.hidden = false;
 
   const deps = $('dependencies');
   deps.replaceChildren();
@@ -201,7 +232,7 @@ function showSkill(id) {
       chips.append(chip);
     }
     deps.append(chips);
-    deps.append(element('p', 'Das ZIP enthält keine abhängigen Skills.', 'muted'));
+    deps.append(element('p', 'Das ZIP enthält alle direkten und indirekten Abhängigkeiten.', 'muted'));
   }
 
   const files = $('files');
@@ -297,7 +328,7 @@ for (const [id, key] of preferences) {
   $(id).addEventListener('change', () => {
     try { window.localStorage.setItem(key, $(id).value); } catch { /* Storage is optional. */ }
     updateSelection();
-    if (id === 'tool') updatePreviewInvocation();
+    if (id === 'tool') updatePreviewForTool();
   });
 }
 templateChoices.addEventListener('change', updateSelection);
@@ -307,6 +338,8 @@ $('clear').addEventListener('click', () => {
   updateSelection();
 });
 $('copy').addEventListener('click', () => copyField($('command'), $('copy-status')));
+$('copy-prompt').addEventListener('click', () => copyField($('agent-prompt'), $('prompt-status'),
+  'Agenten-Prompt kopiert. Füge ihn im Agenten des Zielprojekts ein.'));
 
 async function init() {
   for (const [id, key, options] of preferences) {

@@ -67,7 +67,10 @@ summary { cursor: pointer; font-weight: 650; overflow-wrap: anywhere; }
 #content:focus-visible { outline-offset: -3px; }
 .title-row, .controls, .chips { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem .8rem; }
 .title-row h2 { overflow-wrap: anywhere; }
-.skill-download { margin-inline-start: auto; color: var(--text); font-size: .85rem; text-decoration: none; }
+.package-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-inline-start: auto; max-inline-size: 100%; }
+#prompt-status:empty { display: none; }
+.icon-library { position: absolute; inline-size: 0; block-size: 0; }
+.action-icon { flex: none; inline-size: 1.2rem; block-size: 1.2rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .badge, .chip { font-size: .8rem; color: var(--accent); background: var(--accent-surface); border: 1px solid var(--border); border-radius: 2rem; padding: .15rem .55rem; }
 .dependencies { margin: 0 1.15rem .95rem; padding: .55rem .8rem; border: 1px solid var(--border); border-radius: .45rem; background: var(--inset); }
 .dependencies > p { margin-top: .4rem; }
@@ -105,6 +108,8 @@ pre { overflow: auto; padding: .75rem; font-size: .85rem; }
 .install-heading { justify-content: space-between; }
 .controls { margin-block: .7rem; }
 select, .quiet, .primary { padding: .35rem .65rem; border: 1px solid var(--border); border-radius: .4rem; background: var(--inset); }
+.icon-action { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-inline-size: 2.75rem; min-block-size: 2.75rem; font-size: .85rem; text-decoration: none; }
+.icon-action.quiet { color: var(--text); }
 .primary { color: #0c2627; background: var(--accent); font-weight: 700; }
 .quiet:hover:not(:disabled), select:hover { border-color: var(--accent); }
 .primary:hover:not(:disabled) { background: #adf5e1; }
@@ -120,5 +125,6 @@ textarea { display: block; width: 100%; padding: .7rem; margin-top: .25rem; resi
   .top-links { justify-content: start; }
   .workspace { grid-template-columns: minmax(0, 1fr); }
   .preview { min-height: 12rem; }
+  .package-actions { margin-inline-start: 0; }
   #content { max-height: none; }
 }

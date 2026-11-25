@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { zipSync } from 'fflate';
 import { marked } from 'marked';
 import { parseDocument } from 'yaml';
-import { normalizeBaseUrl, splitFrontmatter } from './hub-core.js';
+import { normalizeBaseUrl, splitFrontmatter, targets } from './hub-core.js';
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
 const catalogDirectory = '_SKILLS';
@@ -201,7 +201,7 @@ export function buildSite(root, downloadBaseUrl = '') {
   // dist/ is generated output, including skill files that may disappear between builds.
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(path.join(out, 'vendor'), { recursive: true });
-  for (const file of ['index.html', 'app.js', 'style.css', 'hub-core.js', 'powershell-installer.js']) {
+  for (const file of ['index.html', 'app.js', 'style.css', 'hub-core.js', 'powershell-installer.js', 'tabler.LICENSE']) {
     fs.copyFileSync(path.join(webDir, file), path.join(out, file));
   }
   const modules = path.join(webDir, '..', 'node_modules');
@@ -214,15 +214,14 @@ export function buildSite(root, downloadBaseUrl = '') {
     fs.copyFileSync(path.join(modules, source), path.join(out, 'vendor', dest));
   }
   for (const entry of [...Object.values(manifest.skills), ...manifest.projectTemplates]) {
-    const archiveFiles = entry.archive ? {} : null;
+    const archiveFiles = entry.archive ? Object.create(null) : null;
     for (const file of entry.files) {
       const relative = `${entry.repoPath}/${file}`;
       const destination = path.join(out, relative);
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.copyFileSync(path.join(root, catalogDirectory, relative), destination);
       if (archiveFiles) {
-        const mode = entry.fileInfo[file].executable ? 0o100755 : 0o100644;
-        archiveFiles[`${entry.id}/${file}`] = [fs.readFileSync(destination), { os: 3, attrs: mode << 16 }];
+        archiveFiles[`${entry.id}/${file}`] = zipFile(out, entry, file);
       }
     }
     if (archiveFiles) {
@@ -231,8 +230,31 @@ export function buildSite(root, downloadBaseUrl = '') {
       fs.writeFileSync(destination, zipSync(archiveFiles));
     }
   }
+  for (const skill of Object.values(manifest.skills)) {
+    skill.packages = Object.fromEntries(Object.entries(targets).map(([tool, target]) => {
+      const files = Object.create(null);
+      const catalogPath = (entry) => entry.repoPath.slice(entry.repoPath.indexOf('/') + 1);
+      // Claude Code documents skill directories as direct children of .claude/skills.
+      const projectPath = (entry) => `${target}/${tool === 'claude' ? entry.id : catalogPath(entry)}`;
+      for (const entry of [skill, ...skill.allDeps.map((id) => manifest.skills[id])]) {
+        for (const file of entry.files) files[`${projectPath(entry)}/${file}`] = zipFile(out, entry, file);
+      }
+      const archive = `downloads/${tool}/${catalogPath(skill)}.zip`;
+      const destination = path.join(out, archive);
+      // The ZIP hash in the agent prompt should not change just because the site was rebuilt.
+      const bytes = zipSync(files, { mtime: new Date(2000, 0, 1) });
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.writeFileSync(destination, bytes);
+      return [tool, { archive, projectPath: projectPath(skill), sha256: createHash('sha256').update(bytes).digest('hex') }];
+    }));
+  }
   fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   return manifest;
+}
+
+function zipFile(out, entry, file) {
+  const mode = entry.fileInfo[file].executable ? 0o100755 : 0o100644;
+  return [fs.readFileSync(path.join(out, entry.repoPath, file)), { os: 3, attrs: mode << 16 }];
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

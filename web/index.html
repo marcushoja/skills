@@ -9,6 +9,21 @@
   <script type="module" src="./app.js"></script>
 </head>
 <body>
+  <!-- Tabler icons via Iconify; see tabler.LICENSE. -->
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-zip" viewBox="0 0 24 24">
+      <path d="M6 20.735A2 2 0 0 1 5 19V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2h-1M11 17a2 2 0 0 1 2 2v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2a2 2 0 0 1 2-2m0-12h-1m3 2h-1m-1 2h-1m3 2h-1m-1 2h-1m3 2h-1"/>
+    </symbol>
+    <symbol id="icon-copy" viewBox="0 0 24 24">
+      <path d="M7 9.667A2.667 2.667 0 0 1 9.667 7h8.666A2.667 2.667 0 0 1 21 9.667v8.666A2.667 2.667 0 0 1 18.333 21H9.667A2.667 2.667 0 0 1 7 18.333zM4.012 16.737A2 2 0 0 1 3 15V5c0-1.1.9-2 2-2h10c.75 0 1.158.385 1.5 1"/>
+    </symbol>
+    <symbol id="icon-reset" viewBox="0 0 24 24">
+      <path d="M15 4.55a8 8 0 0 0-6 14.9M9 15v5H4M18.37 7.16v.01M13 19.94v.01m3.84-1.58v.01m2.53-3.28v.01m.57-4.11v.01"/>
+    </symbol>
+    <symbol id="icon-terminal" viewBox="0 0 24 24">
+      <path d="m8 9l3 3l-3 3m5 0h3M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+    </symbol>
+  </svg>
   <header class="top">
     <div>
       <h1>Skills Hub</h1>
@@ -50,7 +65,15 @@
         <header class="preview-header">
           <div class="title-row">
             <h2 id="preview-title">Vorschau</h2><span id="skill-type" class="badge" hidden></span>
-            <a id="skill-download" class="quiet skill-download" download hidden>ZIP herunterladen</a>
+            <div id="package-actions" class="package-actions" hidden>
+              <a id="skill-download" class="quiet icon-action" title="ZIP herunterladen" aria-label="ZIP herunterladen" download>
+                <svg class="action-icon" aria-hidden="true"><use href="#icon-zip"></use></svg>
+              </a>
+              <button id="copy-prompt" class="quiet icon-action" type="button" title="Agenten-Prompt kopieren">
+                <svg class="action-icon" aria-hidden="true"><use href="#icon-copy"></use></svg>
+                <span>Agenten-Prompt kopieren</span>
+              </button>
+            </div>
           </div>
           <p id="description" class="muted">Wähle einen Skill aus dem Katalog.</p>
           <p id="preview-invocation" class="muted" aria-live="polite" hidden>
@@ -58,6 +81,8 @@
             <span id="preview-invocation-mode"></span>
             <span id="preview-manual-invocation" hidden> · <code id="preview-invocation-command"></code></span>
           </p>
+          <p id="prompt-status" class="muted" role="status"></p>
+          <textarea id="agent-prompt" aria-label="Agenten-Prompt zum manuellen Kopieren" readonly rows="5" hidden></textarea>
         </header>
         <div id="dependencies" class="dependencies" hidden></div>
         <div id="files" class="files" role="group" aria-label="Dateivorschau" hidden></div>
@@ -67,7 +92,9 @@
     <section class="panel install" aria-labelledby="install-title">
       <div class="title-row install-heading">
         <h2 id="install-title">Im Projekt installieren</h2>
-        <button id="clear" class="quiet" type="button" disabled>Auswahl zurücksetzen</button>
+        <button id="clear" class="quiet icon-action" type="button" title="Auswahl zurücksetzen" aria-label="Auswahl zurücksetzen" disabled>
+          <svg class="action-icon" aria-hidden="true"><use href="#icon-reset"></use></svg>
+        </button>
       </div>
       <p class="muted">Der Hub ersetzt nur seine eigenen, ausgewählten Skill-Ordner.</p>
       <div class="controls">
@@ -82,7 +109,9 @@
       <p id="command-help" class="muted">Kopiere den gesamten Block und füge ihn im Projektstamm in Bash ein.</p>
         <textarea id="command" aria-describedby="command-help" readonly rows="8" wrap="off" spellcheck="false" placeholder="Wähle einen Workflow, einen Skill oder eine Projektvorlage."></textarea>
       <div class="controls">
-        <button id="copy" class="primary" type="button" disabled>Befehl kopieren</button>
+        <button id="copy" class="primary icon-action" type="button" title="Installationsbefehl kopieren" aria-label="Installationsbefehl kopieren" disabled>
+          <svg class="action-icon" aria-hidden="true"><use href="#icon-terminal"></use></svg>
+        </button>
         <span id="copy-status" role="status"></span>
       </div>
       <section class="after-install" aria-labelledby="after-install-title">
