@@ -1,0 +1,5 @@
+interface:
+  display_name: "Session übergeben"
+  short_description: "Eine Übergabe für die nächste Session schreiben"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Plan hinterfragen"
+  short_description: "Einen Plan im Interview schärfen"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Fehlerdiagnose"
+  short_description: "Schwierige Fehler und Rückschritte untersuchen"

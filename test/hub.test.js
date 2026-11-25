@@ -5,6 +5,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { buildSite, createManifest } from '../web/build-manifest.mjs';
 import { fileUrl, generateInstallCommand, getSelection, getSkillInvocations, normalizeBaseUrl, targets } from '../web/hub-core.js';
@@ -12,11 +13,40 @@ import { fileUrl, generateInstallCommand, getSelection, getSkillInvocations, nor
 const exec = promisify(execFile);
 
 test('Skill-Aufrufe verwenden die echten IDs und das Präfix des Ziel-Tools', () => {
-  const manual = new Set(['mh-wf-docs-review', 'mh-docs-style']);
-  assert.deepEqual(getSkillInvocations('claude', manual), ['/mh-docs-style', '/mh-wf-docs-review']);
-  assert.deepEqual(getSkillInvocations('opencode', manual), ['@mh-docs-style', '@mh-wf-docs-review']);
-  assert.deepEqual(getSkillInvocations('codex', manual), ['$mh-docs-style', '$mh-wf-docs-review']);
+  const manual = new Set(['mh-wf-plan-hinterfragen', 'mh-tdd']);
+  assert.deepEqual(getSkillInvocations('claude', manual), ['/mh-tdd', '/mh-wf-plan-hinterfragen']);
+  assert.deepEqual(getSkillInvocations('opencode', manual), ['@mh-tdd', '@mh-wf-plan-hinterfragen']);
+  assert.deepEqual(getSkillInvocations('codex', manual), ['$mh-tdd', '$mh-wf-plan-hinterfragen']);
   assert.deepEqual(getSkillInvocations('opencode', new Set()), []);
+});
+
+test('Deutsches Startpaket liefert Abhängigkeiten, Begleitdateien und Lizenzen aus', () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const { skills } = createManifest(root);
+  const entries = {
+    'mh-wf-plan-hinterfragen': 'workflows/planung',
+    'mh-wf-uebergabe': 'workflows/zusammenarbeit',
+    'mh-plan-interview': 'skills/planung',
+    'mh-tdd': 'skills/entwicklung',
+    'mh-fehlerdiagnose': 'skills/entwicklung',
+  };
+  for (const [id, category] of Object.entries(entries)) {
+    assert.equal(skills[id].repoPath, `${category}/${id}`);
+    assert.ok(skills[id].files.includes('LICENSE'), id);
+    assert.ok(skills[id].files.includes('agents/openai.yaml'), id);
+  }
+  const workflow = 'mh-wf-plan-hinterfragen';
+  const interview = 'mh-plan-interview';
+  const manual = new Set([workflow]);
+  assert.deepEqual(skills[workflow].directDeps, [interview]);
+  assert.deepEqual(getSelection(skills, manual).ids, [interview, workflow]);
+  assert.deepEqual(getSkillInvocations('opencode', manual), [`@${workflow}`]);
+  assert.ok(skills['mh-tdd'].files.includes('tests.md'));
+  assert.ok(skills['mh-tdd'].files.includes('mocking.md'));
+  assert.ok(skills['mh-fehlerdiagnose'].files.includes('scripts/hitl-loop.template.sh'));
+  for (const id of ['mh-docs-checklist', 'mh-docs-style', 'mh-wf-docs-review']) {
+    assert.equal(Object.hasOwn(skills, id), false, id);
+  }
 });
 
 function tempDir(t) {
