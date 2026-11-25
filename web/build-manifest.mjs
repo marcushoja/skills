@@ -45,6 +45,31 @@ function parseSkill(raw, file, id) {
   return { description: description.trim(), refs };
 }
 
+function scanProjectTemplates(catalogRoot) {
+  const repoPath = 'project-templates';
+  const dir = path.join(catalogRoot, repoPath);
+  const stat = fs.lstatSync(dir, { throwIfNoEntry: false });
+  if (!stat) return [];
+  if (!stat.isDirectory()) throw new Error(`Kein regulärer Vorlagen-Ordner: ${dir}`);
+  return visibleEntries(dir).sort((a, b) => a.name.localeCompare(b.name, 'de')).flatMap((entry) => {
+    if (entry.isSymbolicLink()) throw new Error(`Symlinks sind nicht erlaubt: ${path.join(dir, entry.name)}`);
+    if (!entry.name.endsWith('.md')) return [];
+    const file = entry.name;
+    const id = file.slice(0, -3);
+    if (!entry.isFile() || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
+      throw new Error(`Ungültige Projektvorlage: ${path.join(dir, file)}`);
+    }
+    const bytes = fs.readFileSync(path.join(dir, file));
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (!text.trim() || /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(text)) throw new Error(`Kein Markdown-Text: ${file}`);
+    const title = text.match(/^[ \t]*#[ \t]+(.+?)[ \t]*$/m)?.[1] ?? id;
+    return [{
+      id, title, repoPath, files: [file],
+      fileInfo: { [file]: { size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') } },
+    }];
+  });
+}
+
 export function createManifest(root, downloadBaseUrl = '') {
   const skills = Object.create(null);
   const skillRefs = new Map();
@@ -116,7 +141,8 @@ export function createManifest(root, downloadBaseUrl = '') {
     skill.allDeps = [...visited].sort();
   }
 
-  return { generatedAt: new Date().toISOString(), downloadBaseUrl: normalizeBaseUrl(downloadBaseUrl), tree, skills };
+  const projectTemplates = scanProjectTemplates(catalogRoot);
+  return { generatedAt: new Date().toISOString(), downloadBaseUrl: normalizeBaseUrl(downloadBaseUrl), tree, skills, projectTemplates };
 }
 
 export function buildSite(root, downloadBaseUrl = '') {
@@ -137,9 +163,9 @@ export function buildSite(root, downloadBaseUrl = '') {
   ]) {
     fs.copyFileSync(path.join(modules, source), path.join(out, 'vendor', dest));
   }
-  for (const skill of Object.values(manifest.skills)) {
-    for (const file of skill.files) {
-      const relative = `${skill.repoPath}/${file}`;
+  for (const entry of [...Object.values(manifest.skills), ...manifest.projectTemplates]) {
+    for (const file of entry.files) {
+      const relative = `${entry.repoPath}/${file}`;
       const destination = path.join(out, relative);
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.copyFileSync(path.join(root, catalogDirectory, relative), destination);
@@ -152,7 +178,7 @@ export function buildSite(root, downloadBaseUrl = '') {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const manifest = buildSite(path.dirname(webDir), process.env.DOWNLOAD_BASE_URL);
-    console.log(`Skills Hub gebaut: ${Object.keys(manifest.skills).length} Skills und Workflows in dist/.`);
+    console.log(`Skills Hub gebaut: ${Object.keys(manifest.skills).length} Skills und Workflows, ${manifest.projectTemplates.length} Projektvorlagen in dist/.`);
   } catch (error) {
     console.error(`Build fehlgeschlagen: ${error.message}`);
     process.exitCode = 1;

@@ -26,8 +26,8 @@
     <details class="hub-intro">
       <summary>Warum ein Skills Hub?</summary>
       <div class="hub-intro-copy">
-        <p>Euer Team pflegt seine Skills an einem Ort, ohne sie global zu aktivieren. Wählt für ein Java-Projekt den Java-Workflow aus: Der Hub installiert die dazugehörigen Skills gleich mit. Python-Skills bleiben draußen.</p>
-        <p>Checkt die installierten Skills ins Projekt-Repo ein, damit alle mit demselben Stand arbeiten. Änderungen im Hub landen erst im Projekt, wenn ihr sie bewusst übernehmt.</p>
+        <p><strong>Verschiedene KI-Assistenten, dieselben Projektstandards.</strong> Haltet in der <code>AGENTS.md</code> fest, was im Projekt grundsätzlich gilt – etwa wie ihr Klassen benennt, testet und dokumentiert.</p>
+        <p>Euer Team pflegt Skills zentral, installiert aber nur, was zum Projekt passt. Ein Java-Workflow bringt seine Java-Skills mit, keine Python-Skills. Checkt die Projektanweisungen und die installierten Skills ein, damit alle mit demselben Stand arbeiten und Änderungen bewusst übernehmen.</p>
       </div>
     </details>
     <div class="workspace">
@@ -35,6 +35,16 @@
         <h2>Katalog</h2>
         <p class="muted">Name für die Vorschau, Checkbox für die Installation.</p>
         <div id="tree"></div>
+        <details class="group" id="project-templates" open hidden>
+          <summary>Projektvorlagen</summary>
+          <p class="group-description">Startpunkt für die <code>AGENTS.md</code> mit den Regeln fürs Projekt.</p>
+          <div class="template-controls">
+            <select id="project-template" aria-label="Projektvorlage für die Installation">
+              <option value="">Keine Vorlage installieren</option>
+            </select>
+            <button id="preview-template" class="quiet" type="button" disabled>Vorlage ansehen</button>
+          </div>
+        </details>
       </nav>
       <section class="panel preview" aria-labelledby="preview-title">
         <header class="preview-header">
@@ -62,7 +72,7 @@
       </div>
       <label for="command">Installationsbefehl</label>
       <p id="command-help" class="muted">Kopiere den gesamten Block und füge ihn im Projektstamm in Bash ein.</p>
-      <textarea id="command" aria-describedby="command-help" readonly rows="8" wrap="off" spellcheck="false" placeholder="Wähle mindestens einen Skill."></textarea>
+        <textarea id="command" aria-describedby="command-help" readonly rows="8" wrap="off" spellcheck="false" placeholder="Wähle einen Workflow, einen Skill oder eine Projektvorlage."></textarea>
       <div class="controls">
         <button id="copy" class="primary" type="button" disabled>Befehl kopieren</button>
         <span id="copy-status" role="status"></span>

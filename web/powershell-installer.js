@@ -1,7 +1,7 @@
 const invalidWindowsPart = /[<>:"|?*]|[ .]$|^(?:con|conin\$|conout\$|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³]) *(?:\.|$)/iu;
 
-export function renderPowerShellInstaller(target, entries, httpsOnly) {
-  const plan = entries.map(({ id, files }) => ({
+export function renderPowerShellInstaller(target, entries, httpsOnly, template) {
+  const skills = entries.map(({ id, files }) => ({
     id,
     files: files.map(({ file, parts, url, sha256 }) => {
       if (parts.some((part) => invalidWindowsPart.test(part))) {
@@ -17,14 +17,16 @@ export function renderPowerShellInstaller(target, entries, httpsOnly) {
   $target = '${target}'
   $httpsOnly = ${httpsOnly ? '$true' : '$false'}
   $planJson = @'
-${JSON.stringify(plan, null, 2).replace(/[\u0085\u2028\u2029]/g, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`)}
+${JSON.stringify({ skills, template }, null, 2).replace(/[\u0085\u2028\u2029]/g, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`)}
 '@
 ${installer}
 }
 `;
 }
 
-const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
+const installer = String.raw`  $installPlan = ConvertFrom-Json -InputObject $planJson
+  $plan = $installPlan.skills
+  $template = $installPlan.template
   $marker = '.skills-hub-managed'
 
   function Get-HubAttributes($path) {
@@ -112,27 +114,37 @@ const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
   $project = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath('.')
   if ([IO.Path]::GetPathRoot($project) -eq $project) { throw 'Bitte im Zielprojekt ausführen, nicht im Wurzelverzeichnis.' }
   $target = [IO.Path]::GetFullPath([IO.Path]::Combine($project, $target))
-  New-HubDirectory ([IO.Path]::GetDirectoryName($target))
-  New-HubDirectory $target
-  $lock = [IO.Path]::Combine($target, '.skills-hub.lock')
-  try { $lockStream = [IO.File]::Open($lock, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None) }
-  catch { throw "Installationssperre vorhanden oder nicht anlegbar: $lock ($($_.Exception.Message))" }
+  $lockStream = $null
+  if ($plan.Count -gt 0) {
+    New-HubDirectory ([IO.Path]::GetDirectoryName($target))
+    New-HubDirectory $target
+    $lock = [IO.Path]::Combine($target, '.skills-hub.lock')
+    try { $lockStream = [IO.File]::Open($lock, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None) }
+    catch { throw "Installationssperre vorhanden oder nicht anlegbar: $lock ($($_.Exception.Message))" }
+  }
 
   $stage = $null
+  $templateStage = $null
   $client = $null
   $preserve = $false
   try {
     foreach ($skill in $plan) { [void](Get-HubDestination $skill.id) }
-    Add-Type -AssemblyName System.Net.Http
-    $handler = [Net.Http.HttpClientHandler]::new()
-    $handler.AllowAutoRedirect = $false
-    $client = [Net.Http.HttpClient]::new($handler)
-    $stagePath = [IO.Path]::Combine($target, ('.skills-hub.' + [Guid]::NewGuid().ToString('N')))
-    New-HubDirectory $stagePath
-    $stage = $stagePath
-    $new = [IO.Path]::Combine($stage, 'new')
-    $backup = [IO.Path]::Combine($stage, 'backup')
-    New-HubDirectory $backup
+    $agents = [IO.Path]::Combine($project, 'AGENTS.md')
+    $needsTemplate = $template -and $null -eq (Get-HubAttributes $agents)
+    if ($plan.Count -gt 0 -or $needsTemplate) {
+      Add-Type -AssemblyName System.Net.Http
+      $handler = [Net.Http.HttpClientHandler]::new()
+      $handler.AllowAutoRedirect = $false
+      $client = [Net.Http.HttpClient]::new($handler)
+    }
+    if ($plan.Count -gt 0) {
+      $stagePath = [IO.Path]::Combine($target, ('.skills-hub.' + [Guid]::NewGuid().ToString('N')))
+      New-HubDirectory $stagePath
+      $stage = $stagePath
+      $new = [IO.Path]::Combine($stage, 'new')
+      $backup = [IO.Path]::Combine($stage, 'backup')
+      New-HubDirectory $backup
+    }
     foreach ($skill in $plan) {
       $stagedSkill = [IO.Path]::Combine($new, $skill.id)
       New-HubDirectory $stagedSkill
@@ -145,6 +157,16 @@ const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
         }
       }
       [IO.File]::WriteAllText([IO.Path]::Combine($stagedSkill, $marker), "skills-hub:$($skill.id)" + [char]10)
+    }
+    if ($needsTemplate) {
+      $templatePath = [IO.Path]::Combine($project, ('.skills-hub-project.' + [Guid]::NewGuid().ToString('N')))
+      New-HubDirectory $templatePath
+      $templateStage = $templatePath
+      $stagedAgents = [IO.Path]::Combine($templateStage, 'AGENTS.md')
+      Save-HubFile $template.url $stagedAgents
+      if ((Get-HubSha256 $stagedAgents) -ne $template.sha256) {
+        throw "Prüfsumme stimmt nicht: $stagedAgents (bitte Hub neu laden)"
+      }
     }
 
     # Bereits verwaltete Ordner sichern und bei fehlgeschlagenem Austausch zurücklegen.
@@ -161,8 +183,23 @@ const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
       }
     }
     $preserve = $false
-    Write-Output "Installiert unter $($target):"
-    foreach ($skill in $plan) { Write-Output "  $($skill.id)" }
+    if ($plan.Count -gt 0) {
+      Write-Output "Installiert unter $($target):"
+      foreach ($skill in $plan) { Write-Output "  $($skill.id)" }
+    }
+    if ($template) {
+      if ($needsTemplate -and $null -eq (Get-HubAttributes $agents)) {
+        try {
+          # Die Zwei-Argument-Variante von Move ersetzt keine vorhandene Datei.
+          [IO.File]::Move($stagedAgents, $agents)
+          Write-Output 'Angelegt: AGENTS.md'
+          return
+        } catch {
+          if ($null -eq (Get-HubAttributes $agents)) { throw }
+        }
+      }
+      Write-Warning ($template.existingAgentsWarning + [Environment]::NewLine + $template.existingAgentsHelp) -WarningAction Continue
+    }
   } finally {
     try {
       if ($client) { $client.Dispose() }
@@ -171,7 +208,13 @@ const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
         else { Remove-HubStage $stage }
       }
     } finally {
-      $lockStream.Dispose()
-      [IO.File]::Delete($lock)
+      try {
+        if ($templateStage) { Remove-HubStage $templateStage }
+      } finally {
+        if ($lockStream) {
+          $lockStream.Dispose()
+          [IO.File]::Delete($lock)
+        }
+      }
     }
   }`;

@@ -20,6 +20,7 @@ const preferences = [
   ['terminal', 'skills-hub.terminal', terminals],
 ];
 const manual = new Set();
+const projectTemplates = new Map();
 const skillRows = new Map();
 const fileButtons = new Map();
 const toolHelp = document.querySelectorAll('[data-tool-help]');
@@ -101,6 +102,8 @@ function updateSelection() {
   $('copy-status').textContent = '';
   updateInvocations(tool);
   if (!manifest) return;
+  const template = projectTemplates.get($('project-template').value);
+  $('preview-template').disabled = !template;
   const { ids, requiredBy } = getSelection(manifest.skills, manual);
   for (const [id, { checkbox, reason }] of skillRows) {
     const required = requiredBy.get(id);
@@ -109,15 +112,34 @@ function updateSelection() {
     reason.hidden = !required;
     reason.textContent = required ? `Benötigt von: ${required.join(', ')}` : '';
   }
-  $('selection').textContent = ids.length ? `${ids.length} insgesamt · ${manual.size} direkt ausgewählt` : 'Keine Auswahl';
-  $('clear').disabled = !manual.size;
+  const selected = [];
+  if (ids.length) selected.push(`${ids.length} Skills insgesamt · ${manual.size} direkt ausgewählt`);
+  if (template) selected.push('AGENTS.md (falls nicht vorhanden)');
+  $('selection').textContent = selected.join(' · ') || 'Keine Auswahl';
+  $('clear').disabled = !manual.size && !template;
+  document.querySelector('.after-install').hidden = Boolean(template && !ids.length);
   try {
-    $('command').value = generateInstallCommand(manifest.skills, manual, tool, manifest.downloadBaseUrl || sourceBase, terminal);
+    $('command').value = generateInstallCommand(manifest.skills, manual, tool, manifest.downloadBaseUrl || sourceBase, terminal, template);
   } catch (error) {
     $('command').value = '';
     $('copy-status').textContent = error.message;
   }
   $('copy').disabled = !$('command').value;
+}
+
+function showProjectTemplate() {
+  const template = projectTemplates.get($('project-template').value);
+  if (!template) return;
+  if (activeSkill) skillRows.get(activeSkill).name.removeAttribute('aria-current');
+  activeSkill = undefined;
+  $('preview-title').textContent = template.title;
+  $('skill-type').textContent = 'Projektvorlage';
+  $('skill-type').hidden = false;
+  $('description').textContent = 'Wird als AGENTS.md im Projektstamm angelegt, wenn die Datei noch fehlt.';
+  $('dependencies').hidden = true;
+  $('files').hidden = true;
+  fileButtons.clear();
+  void showFile(template, template.files[0]);
 }
 
 function showSkill(id) {
@@ -239,7 +261,13 @@ for (const [id, key] of preferences) {
     updateSelection();
   });
 }
-$('clear').addEventListener('click', () => { manual.clear(); updateSelection(); });
+$('project-template').addEventListener('change', updateSelection);
+$('preview-template').addEventListener('click', showProjectTemplate);
+$('clear').addEventListener('click', () => {
+  manual.clear();
+  $('project-template').value = '';
+  updateSelection();
+});
 $('copy').addEventListener('click', () => copyField($('command'), $('copy-status')));
 
 async function init() {
@@ -255,17 +283,29 @@ async function init() {
     const response = await fetch('./manifest.json', { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     manifest = await response.json();
-    for (const [key, title] of [['workflows', 'Workflows'], ['skills', 'Skills']]) {
+    for (const [key, title, description] of [
+      ['workflows', 'Workflows', 'Verbinden mehrere Skills zu einem Ablauf.'],
+      ['skills', 'Skills', 'Wiederverwendbare Arbeitsanweisungen für einzelne Aufgaben.'],
+    ]) {
       const group = element('details', undefined, 'group');
       group.open = true;
-      group.append(element('summary', title));
+      group.append(element('summary', title), element('p', description, 'group-description'));
       const nodes = manifest.tree[key];
       if (nodes.length) renderTree(nodes, group);
       else group.append(element('p', 'Noch keine Einträge.', 'muted'));
       $('tree').append(group);
     }
+    for (const template of manifest.projectTemplates ?? []) {
+      projectTemplates.set(template.id, template);
+      const option = element('option', template.title);
+      option.value = template.id;
+      $('project-template').append(option);
+    }
+    $('project-templates').hidden = !projectTemplates.size;
     const count = Object.keys(manifest.skills).length;
-    $('catalog-status').textContent = `${count} ${count === 1 ? 'Eintrag' : 'Einträge'} im Katalog`;
+    const templateCount = projectTemplates.size;
+    $('catalog-status').textContent = `${count} ${count === 1 ? 'Skill' : 'Skills'} inkl. Workflows`
+      + (templateCount ? ` · ${templateCount} ${templateCount === 1 ? 'Projektvorlage' : 'Projektvorlagen'}` : '');
     updateSelection();
   } catch (error) {
     $('catalog-status').textContent = `Katalog konnte nicht geladen werden: ${error.message}`;

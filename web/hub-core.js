@@ -58,11 +58,18 @@ export function getSelection(skills, manual) {
 }
 
 const quote = (value) => "'" + value.replaceAll("'", "'\\''") + "'";
+const existingAgentsWarning = 'ACHTUNG: AGENTS.md existiert bereits und wurde nicht ersetzt.';
+const existingAgentsHelp = 'Ergänze die Vorlage manuell oder sichere und entferne die vorhandene AGENTS.md und führe den Befehl erneut aus.';
 
 const installer = String.raw`set -euo pipefail
 marker='.skills-hub-managed'
 
 fail() { printf '%s\n' "$*" >&2; exit 1; }
+
+require_download_tools() {
+  command -v curl >/dev/null 2>&1 || fail 'curl wird benötigt.'
+  command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || fail 'sha256sum oder shasum wird benötigt.'
+}
 
 # Zielordner anlegen, ohne Symlinks zu folgen.
 ensure_dir() {
@@ -106,19 +113,19 @@ install_skill() {
 }
 
 # Ziel prüfen und parallele Hub-Installationen sperren.
-command -v curl >/dev/null 2>&1 || fail 'curl wird benötigt.'
-command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || fail 'sha256sum oder shasum wird benötigt.'
 [[ "$PWD" != / ]] || fail 'Bitte im Zielprojekt ausführen, nicht im Wurzelverzeichnis.'
-ensure_dir "$(dirname -- "$target")"
-ensure_dir "$target"
-lock="$target/.skills-hub.lock"
+lock=''
 stage=''
+template_stage=''
 preserve=0
-mkdir -- "$lock" || fail "Installationssperre vorhanden oder nicht anlegbar: $lock"
 
 # Nur den selbst angelegten Arbeitsordner aufräumen. Bei einem Abbruch
 # während des Austauschs bleiben dort vorhandene Sicherungen erhalten.
 cleanup() {
+  if [[ -n "$template_stage" ]]; then
+    rm -f -- "$template_stage/AGENTS.md" || true
+    rmdir -- "$template_stage" || true
+  fi
   if [[ -n "$stage" ]]; then
     if [[ "$preserve" == 1 ]]; then
       printf 'Einbau unterbrochen. Sicherungen können hier liegen: %s/backup\n' "$stage" >&2
@@ -126,20 +133,27 @@ cleanup() {
       rm -rf -- "$stage" || true
     fi
   fi
-  rmdir -- "$lock" || true
+  if [[ -n "$lock" ]]; then rmdir -- "$lock" || true; fi
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-for id in "$@"; do check_destination "$id"; done
-stage=$(mktemp -d "$target/.skills-hub.XXXXXXXX")
-mkdir -- "$stage/new" "$stage/backup"`;
+if (( $# )); then
+  require_download_tools
+  ensure_dir "$(dirname -- "$target")"
+  ensure_dir "$target"
+  mkdir -- "$target/.skills-hub.lock" || fail "Installationssperre vorhanden oder nicht anlegbar: $target/.skills-hub.lock"
+  lock="$target/.skills-hub.lock"
+  for id in "$@"; do check_destination "$id"; done
+  stage=$(mktemp -d "$target/.skills-hub.XXXXXXXX")
+  mkdir -- "$stage/new" "$stage/backup"
+fi`;
 
-export function generateInstallCommand(skills, manual, tool, downloadBaseUrl, terminal = 'bash') {
+export function generateInstallCommand(skills, manual, tool, downloadBaseUrl, terminal = 'bash', projectTemplate = null) {
   if (!Object.hasOwn(targets, tool)) throw new Error('Unbekanntes Ziel-Tool.');
   if (!Object.hasOwn(terminals, terminal)) throw new Error('Unbekanntes Terminal.');
   const { ids } = getSelection(skills, manual);
-  if (!ids.length) return '';
+  if (!ids.length && !projectTemplate) return '';
   const base = normalizeBaseUrl(downloadBaseUrl);
   if (!base) throw new Error('Keine Download-URL verfügbar.');
   const httpsOnly = base.startsWith('https:');
@@ -156,14 +170,26 @@ export function generateInstallCommand(skills, manual, tool, downloadBaseUrl, te
     });
     return { id, files };
   });
+  let template = null;
+  if (projectTemplate) {
+    const { id, repoPath, fileInfo } = projectTemplate;
+    const file = `${id}.md`;
+    const sha256 = fileInfo?.[file]?.sha256;
+    if (typeof id !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) ||
+        repoPath !== 'project-templates' || !/^[a-f0-9]{64}$/.test(sha256)) {
+      throw new Error('Ungültige Projektvorlage im Manifest.');
+    }
+    template = { url: fileUrl(base, repoPath, file), sha256, existingAgentsWarning, existingAgentsHelp };
+  }
   const target = targets[tool];
   return terminal === 'powershell'
-    ? renderPowerShellInstaller(target, entries, httpsOnly)
-    : renderBashInstaller(target, entries, httpsOnly);
+    ? renderPowerShellInstaller(target, entries, httpsOnly, template)
+    : renderBashInstaller(target, entries, httpsOnly, template);
 }
 
-function renderBashInstaller(target, entries, httpsOnly) {
+function renderBashInstaller(target, entries, httpsOnly, template) {
   const redirects = httpsOnly ? '=https' : '=http,https';
+  const download = `curl --disable -fsSL --globoff --proto '=http,https' --proto-redir '${redirects}' --`;
   const lines = [
     "bash <<'SKILLS_HUB_INSTALL'",
     '# Im Projektstamm ausführen. Eigene und nicht ausgewählte Skill-Ordner bleiben unverändert.',
@@ -180,18 +206,38 @@ function renderBashInstaller(target, entries, httpsOnly) {
       const stagedFile = `"$stage/new/"${quote(`${id}/${file}`)}`;
       lines.push(
         `mkdir -p -- "$stage/new/"${quote([id, ...parts.slice(0, -1)].join('/'))}`,
-        `curl --disable -fsSL --globoff --proto '=http,https' --proto-redir '${redirects}' -- ${quote(url)} > ${stagedFile}`,
+        `${download} ${quote(url)} > ${stagedFile}`,
         `check_hash '${sha256}' ${stagedFile}`,
       );
       if (executable) lines.push(`chmod +x -- ${stagedFile}`);
     }
     lines.push(`printf '%s\\n' ${quote(`skills-hub:${id}`)} > "$stage/new/"${quote(id)}/"$marker"`);
   }
-  lines.push(
+  if (template) lines.push(
+    '', '# Die optionale AGENTS.md separat im Projektstamm vorbereiten.',
+    'if [[ ! -e AGENTS.md && ! -L AGENTS.md ]]; then',
+    ...(entries.length ? [] : ['  require_download_tools']),
+    '  template_stage=$(mktemp -d ./.skills-hub-project.XXXXXXXX)',
+    `  ${download} ${quote(template.url)} > "$template_stage/AGENTS.md"`,
+    `  check_hash '${template.sha256}' "$template_stage/AGENTS.md"`,
+    'fi',
+  );
+  if (entries.length) lines.push(
     '', '# Alle Downloads sind geprüft. Ziele erneut prüfen und die ausgewählten Skills einbauen.',
     'for id in "$@"; do check_destination "$id"; done', 'preserve=1',
     'for id in "$@"; do install_skill "$id"; done', 'preserve=0',
-    "printf 'Installiert unter %s:\\n' \"$target\"", "printf '  %s\\n' \"$@\"", 'SKILLS_HUB_INSTALL', '',
+    "printf 'Installiert unter %s:\\n' \"$target\"", "printf '  %s\\n' \"$@\"",
   );
+  if (template) lines.push(
+    '', '# Ein Hardlink ins Projekt legt AGENTS.md atomar an, ohne vorhandene Einträge zu ersetzen.',
+    'if [[ -n "$template_stage" && ! -e AGENTS.md && ! -L AGENTS.md ]] && ln -- "$template_stage/AGENTS.md" . 2>/dev/null; then',
+    "  printf '%s\\n' 'Angelegt: AGENTS.md'",
+    'elif [[ -z "$template_stage" || -e AGENTS.md || -L AGENTS.md ]]; then',
+    `  printf '\\n%s\\n%s\\n' ${quote(template.existingAgentsWarning)} ${quote(template.existingAgentsHelp)} >&2`,
+    'else',
+    "  fail 'AGENTS.md konnte nicht angelegt werden.'",
+    'fi',
+  );
+  lines.push('SKILLS_HUB_INSTALL', '');
   return lines.join('\n');
 }

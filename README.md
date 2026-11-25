@@ -18,6 +18,12 @@ Skills zentral im Team pflegen, aber nur dort installieren, wo sie gebraucht wer
 
 **Namensregeln:** Ordnernamen müssen im ganzen Katalog eindeutig sein und dürfen nur Kleinbuchstaben, Ziffern und Bindestriche enthalten. Workflows beginnen mit `mh-wf-`, Skills mit `mh-`. Jede `SKILL.md` braucht YAML-Frontmatter mit `name` (identisch zum Ordnernamen) und `description` (nicht leer). Für manuell aufgerufene Workflows empfiehlt sich `disable-model-invocation: true`.
 
+## Projektvorlagen für `AGENTS.md`
+
+Lege kurze Projektregeln als Markdown unter [`_SKILLS/project-templates/`](_SKILLS/project-templates/) ab, etwa `java-service.md`. Die erste `#`-Überschrift ist der Anzeigename. Die Vorlage wird separat ausgewählt und kann auch ohne Skills installiert werden.
+
+Der Installer legt `AGENTS.md` für alle Ziel-Tools im Projektstamm an. Eine schon vorhandene Datei bleibt unverändert: Die ausgewählten Skills werden trotzdem installiert, und am Ende erscheint ein Hinweis zur manuellen Übernahme. Checkt die angepasste `AGENTS.md` ins Projekt-Repo ein.
+
 ## Installieren und aktualisieren
 
 Wähle im Hub Workflow oder Skills, Ziel-Tool und Terminal (Bash oder PowerShell). Prüfe den erzeugten Befehl und führe ihn im Stamm des Zielprojekts aus. Für ein Update wählst du die Einträge erneut aus. Der Installer prüft die Downloads und ersetzt nur ausgewählte, vom Hub verwaltete Skill-Ordner. **Lokale Änderungen in diesen Ordnern gehen beim Update verloren**; prüft Updates deshalb am besten per Git-Diff im Pull Request.
@@ -41,4 +47,4 @@ npm run build
 
 Der Build schreibt nach `dist/`. Für die PowerShell-Integrationstests braucht es `pwsh` oder ein über `SKILLS_HUB_POWERSHELL` angegebenes Programm. Weitere Details stehen in der [Projekt-Spezifikation](skills_hub_spezifikation.md).
 
-Die mitgelieferten Beispiele basieren auf [Matt Pococks Skills](https://github.com/mattpocock/skills/tree/d65391149dbb5fe76478e76fa8d5122b2aa5a70e) (MIT).
+Die mitgelieferten Skills und Workflows basieren auf [Matt Pococks Skills](https://github.com/mattpocock/skills/tree/d65391149dbb5fe76478e76fa8d5122b2aa5a70e) (MIT).

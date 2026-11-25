@@ -133,6 +133,23 @@ test('Build liefert exakt die katalogisierten Skill-Dateien aus, auch nach erneu
   assert.throws(() => normalizeBaseUrl('https://user:pass@example.org'), /DOWNLOAD_BASE_URL/);
 });
 
+const templatePath = 'project-templates/java-service.md';
+const templateText = '# Java-Service\n\n- Schreibe Tests für geändertes Verhalten.\n';
+
+test('Build liefert Projektvorlagen separat von Skills und ohne versteckte Dateien aus', (t) => {
+  const repo = tempDir(t);
+  const source = write(repo, `_SKILLS/${templatePath}`, templateText);
+  write(repo, '_SKILLS/project-templates/.privat.md', '# Privat');
+  addSkill(repo, 'skills', 'mh-java', 'Siehe `java-service`.');
+  const { skills, projectTemplates } = buildSite(repo);
+  assert.deepEqual(skills['mh-java'].allDeps, []);
+  assert.deepEqual(projectTemplates.map(({ id, title }) => [id, title]), [['java-service', 'Java-Service']]);
+  assert.equal(fs.readFileSync(path.join(repo, 'dist', templatePath), 'utf8'), templateText);
+  assert.equal(fs.existsSync(path.join(repo, 'dist/project-templates/.privat.md')), false);
+  fs.symlinkSync(source, path.join(path.dirname(source), 'verlinkt.md'));
+  assert.throws(() => buildSite(repo), /Symlinks sind nicht erlaubt/);
+});
+
 const powershell = process.env.SKILLS_HUB_POWERSHELL || 'pwsh';
 const skipPowerShell = !process.env.SKILLS_HUB_POWERSHELL &&
   spawnSync(powershell, ['-NoProfile', '-Command', 'exit 0']).error?.code === 'ENOENT'
@@ -147,7 +164,8 @@ async function installFixture(t, terminal = 'bash') {
   const filename = "scripts/hello [1] # ' ’ ä $(touch SHOULD_NOT_EXIST).sh";
   const content = '#!/bin/sh\nprintf "%s\\n" hello\n';
   fs.chmodSync(write(repo, `_SKILLS/skills/Doku/mh-doc-demo/${filename}`, content), 0o755);
-  const { skills } = buildSite(repo);
+  write(repo, `_SKILLS/${templatePath}`, templateText);
+  const { skills, projectTemplates: [template] } = buildSite(repo);
   const requests = [];
   let override;
   const server = http.createServer((request, response) => {
@@ -159,8 +177,9 @@ async function installFixture(t, terminal = 'bash') {
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   t.after(() => server.close());
-  function install(tool = 'claude') {
-    const command = generateInstallCommand(skills, new Set(['mh-wf-demo']), tool, `http://127.0.0.1:${server.address().port}`, terminal);
+  function install(tool = 'claude', { withTemplate = false, withSkills = true } = {}) {
+    const manual = new Set(withSkills ? ['mh-wf-demo'] : []);
+    const command = generateInstallCommand(skills, manual, tool, `http://127.0.0.1:${server.address().port}`, terminal, withTemplate ? template : null);
     if (terminal === 'powershell') {
       write(project, 'install.ps1', command);
       // Execute the text as pasted input, without changing the execution policy.
@@ -172,6 +191,71 @@ async function installFixture(t, terminal = 'bash') {
     return exec('bash', [script], { cwd: project, timeout: 5000 });
   }
   return { project, install, filename, content, workflowBody: fs.readFileSync(workflow, 'utf8'), requests, override: (fn) => { override = fn; } };
+}
+
+for (const terminal of ['bash', 'powershell']) {
+  const skip = terminal === 'powershell' ? skipPowerShell : false;
+  test(`${terminal}: Vorlage ist optional, kann allein installiert werden und ersetzt AGENTS.md nie`, { skip }, async (t) => {
+    const { project, install, requests } = await installFixture(t, terminal);
+    const agents = path.join(project, 'AGENTS.md');
+    const claude = write(project, 'CLAUDE.md', 'Eigene Claude-Anweisungen.');
+    const { stdout } = await install('claude', { withTemplate: true, withSkills: false });
+    assert.match(stdout, /Angelegt: AGENTS\.md/);
+    assert.equal(fs.readFileSync(agents, 'utf8'), templateText);
+    assert.equal(fs.existsSync(path.join(project, '.claude')), false);
+    assert.equal(fs.readFileSync(claude, 'utf8'), 'Eigene Claude-Anweisungen.');
+    assert.deepEqual(requests, [templatePath]);
+
+    fs.writeFileSync(agents, 'Projektregeln: Nicht anrühren.');
+    const skipped = await install('codex', { withTemplate: true });
+    assert.match(skipped.stdout + skipped.stderr, /ACHTUNG: AGENTS\.md existiert bereits und wurde nicht ersetzt\./);
+    assert.match(skipped.stdout + skipped.stderr, /Ergänze die Vorlage manuell/);
+    assert.equal(fs.readFileSync(agents, 'utf8'), 'Projektregeln: Nicht anrühren.');
+    assert.ok(fs.existsSync(path.join(project, targets.codex, 'mh-wf-demo/SKILL.md')));
+    assert.equal(requests.filter((file) => file === templatePath).length, 1);
+
+    fs.unlinkSync(agents);
+    await install('opencode');
+    assert.equal(fs.existsSync(agents), false);
+    await install('opencode', { withTemplate: true });
+    assert.equal(fs.readFileSync(agents, 'utf8'), templateText);
+    assert.equal(fs.readFileSync(claude, 'utf8'), 'Eigene Claude-Anweisungen.');
+    assert.ok(fs.readdirSync(project).every((file) => !file.startsWith('.skills-hub-project.')));
+  });
+
+  test(`${terminal}: prüft Vorlagen vor dem Austausch und schützt zwischenzeitlich angelegte Dateien`, { skip }, async (t) => {
+    const { project, install, override } = await installFixture(t, terminal);
+    const agents = path.join(project, 'AGENTS.md');
+    await install();
+    const skill = write(project, '.claude/skills/mh-doc-demo/SKILL.md', 'vorheriger Stand');
+    override((file, response) => {
+      if (file !== templatePath) return false;
+      response.end('Falsche Vorlage');
+      return true;
+    });
+    await assert.rejects(install('claude', { withTemplate: true }), /Prüfsumme stimmt nicht/);
+    assert.equal(fs.existsSync(agents), false);
+    assert.equal(fs.readFileSync(skill, 'utf8'), 'vorheriger Stand');
+    assert.ok(fs.readdirSync(project).every((file) => !file.startsWith('.skills-hub-project.')));
+
+    override((file, response) => {
+      if (file !== templatePath) return false;
+      fs.writeFileSync(agents, 'Zwischenzeitlich erstellt.');
+      response.end(templateText);
+      return true;
+    });
+    const result = await install('claude', { withTemplate: true });
+    assert.match(result.stdout + result.stderr, /ACHTUNG: AGENTS\.md existiert bereits/);
+    assert.equal(fs.readFileSync(agents, 'utf8'), 'Zwischenzeitlich erstellt.');
+    assert.notEqual(fs.readFileSync(skill, 'utf8'), 'vorheriger Stand');
+
+    fs.unlinkSync(agents);
+    fs.symlinkSync(path.join(project, 'nicht-vorhanden.md'), agents, 'file');
+    const symlink = await install('claude', { withTemplate: true, withSkills: false });
+    assert.match(symlink.stdout + symlink.stderr, /ACHTUNG: AGENTS\.md existiert bereits/);
+    assert.ok(fs.lstatSync(agents).isSymbolicLink());
+    assert.equal(fs.existsSync(path.join(project, 'nicht-vorhanden.md')), false);
+  });
 }
 
 test('Echter Bash/curl-Install: alle Ziele, flach, Pfadzeichen, Ausführbarkeit und rückstandsfrei aktualisiert', async (t) => {

@@ -4,10 +4,11 @@
 Eine leichtgewichtige, rein statische Webanwendung ohne Backend, ohne Datenbank und ohne GitHub-API-Abhängigkeit, die im selben (privaten) Git-Repository wie die eigenen AI-Agent-Skills liegt.
 
 Die Anwendung:
-1. Liest beim Build `_SKILLS/workflows/` und `_SKILLS/skills/` ein, validiert Struktur und Metadaten und erzeugt eine statische `manifest.json`.
+1. Liest beim Build `_SKILLS/workflows/`, `_SKILLS/skills/` und `_SKILLS/project-templates/` ein, validiert Struktur und Metadaten und erzeugt eine statische `manifest.json`.
 2. Stellt im Browser eine zweigeteilte Oberfläche bereit: links eine aufklappbare Kategorie-Baumstruktur mit Checkboxen, rechts die Vorschau der gewählten `SKILL.md` (inkl. Abhängigkeiten und lesbarer Zusatzdateien).
 3. Generiert einen kopierbaren Block für Bash oder PowerShell, der alle ausgewählten Skills inkl. ihrer Abhängigkeiten **flach** in das Zielprojekt des Nutzers (für **Claude Code**, **OpenCode** oder **Codex**) kopiert.
-4. Der Build kopiert die katalogisierten Dateien nach `dist/workflows/` und `dist/skills/`. Nginx liefert sie unter `/workflows/` und `/skills/` aus; `_SKILLS/` ist nur der Quellordner. Standardmäßig lädt der Installationsbefehl die Dateien direkt vom eigenen Server (`window.location.origin`), sodass das Git-Repository privat bleiben kann.
+4. Installiert auf Wunsch eine Projektvorlage als `AGENTS.md` im Projektstamm, ohne vorhandene Projektanweisungen zu überschreiben.
+5. Der Build kopiert die katalogisierten Dateien nach `dist/workflows/`, `dist/skills/` und `dist/project-templates/`. Nginx liefert sie unter `/workflows/`, `/skills/` und `/project-templates/` aus; `_SKILLS/` ist nur der Quellordner. Standardmäßig lädt der Installationsbefehl die Dateien direkt vom eigenen Server (`window.location.origin`), sodass das Git-Repository privat bleiben kann.
 
 ---
 
@@ -20,16 +21,18 @@ Die Anwendung:
 │   │   └── java/
 │   │       └── mh-wf-java-feature/
 │   │           └── SKILL.md
-│   └── skills/
-│       ├── java/
-│       │   └── mh-java-clean-code/
-│       │       └── SKILL.md
-│       └── javascript/
-│           └── extjs/
-│               └── mh-extjs-components/
-│                   ├── SKILL.md
-│                   └── references/
-│                       └── grid-patterns.md
+│   ├── skills/
+│   │   ├── java/
+│   │   │   └── mh-java-clean-code/
+│   │   │       └── SKILL.md
+│   │   └── javascript/
+│   │       └── extjs/
+│   │           └── mh-extjs-components/
+│   │               ├── SKILL.md
+│   │               └── references/
+│   │                   └── grid-patterns.md
+│   └── project-templates/
+│       └── java-service.md
 ├── web/
 │   ├── build-manifest.mjs             # Node.js Build-Skript (Zero Dependencies)
 │   ├── index.html
@@ -54,6 +57,7 @@ Die Anwendung:
   * Workflow-Skills sollten zusätzlich `disable-model-invocation: true` setzen, damit sie nicht versehentlich automatisch ausgelöst werden.
 * **Abhängigkeiten (ohne eigene Metadaten-Tags):**
   * Referenziert eine `SKILL.md` einen anderen im Repo existierenden Skill-Namen in Backticks (z. B. `` `mh-java-clean-code` ``), wird dies beim Build automatisch als Abhängigkeit erkannt.
+* **Projektvorlagen:** Markdown-Dateien direkt unter `_SKILLS/project-templates/`. Der Dateiname ohne `.md` ist die ID, die erste `#`-Überschrift der Anzeigename. Das Manifest führt sie separat von Skills; sie haben keine automatischen Abhängigkeiten.
 
 ---
 
@@ -281,7 +285,7 @@ console.log(`Manifest erfolgreich gebaut: ${skillsMap.size} Skills/Workflows.`);
 
 ### Layout & Funktionsumfang
 1. **Linke Seitenleiste (Baumstruktur):**
-   * Zwei aufklappbare Hauptbereiche: **Workflows** und **Skills**.
+   * Aufklappbare Hauptbereiche: **Workflows**, **Skills** und **Projektvorlagen**. Eine Projektvorlage lässt sich unabhängig von Skills auswählen und in der Vorschau lesen.
    * Kategorie-Ordner sind auf- und zuklappbar (optional mit Kategorie-Checkbox zum gesammelten An-/Abwählen aller enthaltenen Skills).
    * Jeder Skill zeigt eine Checkbox und seinen klickbaren Namen (lädt rechts die Vorschau).
    * **Abhängigkeits-Logik:** Wird ein Skill mit `allDeps` angehakt, werden alle benötigten Skills im Baum automatisch mitmarkiert, als *„benötigt von …“* gekennzeichnet und gegen manuelles Abwählen gesperrt, solange mindestens ein abhängiger Skill angehakt ist.
@@ -306,6 +310,7 @@ console.log(`Manifest erfolgreich gebaut: ${skillsMap.size} Skills/Workflows.`);
 * **Auswahlmenge:** Vereinigungsmenge aller manuell angehakten Skills + deren `allDeps` (dedupliziert, alphabetisch sortiert).
 * **Installation:** Beide Varianten prüfen den Zielpfad, sperren parallele Installationen und laden alle ausgewählten Dateien zuerst in einen temporären Ordner auf demselben Dateisystem. Jede Datei muss die im Manifest hinterlegte SHA-256-Prüfsumme erfüllen.
 * **Aktualisierung:** Nur ausgewählte Ordner mit passender `.skills-hub-managed`-Markierung werden ersetzt. Eigene und nicht ausgewählte Ordner bleiben unverändert. Wird der Einbau eines gesicherten Ordners unterbrochen, versucht der Befehl beim fehlgeschlagenen Austausch die Sicherung zurückzulegen; sonst bleibt sie zur manuellen Wiederherstellung erhalten.
+* **Projektvorlage:** Nur eine ausdrücklich gewählte Vorlage wird installiert, für alle Ziel-Tools als `AGENTS.md` im Projektstamm. Bei vorhandener `AGENTS.md` wird sie übersprungen, ausgewählte Skills werden trotzdem installiert und das Skript weist am Ende auf die manuelle Übernahme hin.
 
 ---
 
