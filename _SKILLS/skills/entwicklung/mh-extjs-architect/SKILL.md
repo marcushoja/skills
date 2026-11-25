@@ -3,7 +3,7 @@ name: mh-extjs-architect
 description: Erstellt, erweitert und prüft Ext-JS-Classic-Anwendungen nach den Strukturkonventionen von Sencha Architect – ohne den Generator zu benötigen. Verwenden bei Views, ViewModels, ViewControllern, Bindings, Formulas, Models, Stores, Proxys und anwendungsweiten Controllern.
 ---
 
-# XJS Architect Skill
+# EXT-JS Architect Skill
 
 Entwickle Ext-JS-Anwendungen so weiter, dass neuer Code zu einem mit Sencha Architect aufgebauten Projekt passt. Übernimm die Klassenstruktur, das MVVM-Muster und die Art der Verdrahtung – nicht den Generatorcode. Bevorzuge klare Regeln für neuen Code, ohne dafür den Bestand ungefragt umzubauen.
 
