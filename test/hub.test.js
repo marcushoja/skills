@@ -7,9 +7,17 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
 import { buildSite, createManifest } from '../web/build-manifest.mjs';
-import { fileUrl, generateInstallCommand, getSelection, normalizeBaseUrl, targets } from '../web/hub-core.js';
+import { fileUrl, generateInstallCommand, getSelection, getSkillInvocations, normalizeBaseUrl, targets } from '../web/hub-core.js';
 
 const exec = promisify(execFile);
+
+test('Skill-Aufrufe verwenden die echten IDs und das Präfix des Ziel-Tools', () => {
+  const manual = new Set(['mh-wf-docs-review', 'mh-docs-style']);
+  assert.deepEqual(getSkillInvocations('claude', manual), ['/mh-docs-style', '/mh-wf-docs-review']);
+  assert.deepEqual(getSkillInvocations('opencode', manual), ['@mh-docs-style', '@mh-wf-docs-review']);
+  assert.deepEqual(getSkillInvocations('codex', manual), ['$mh-docs-style', '$mh-wf-docs-review']);
+  assert.deepEqual(getSkillInvocations('opencode', new Set()), []);
+});
 
 function tempDir(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skills-hub-test-'));

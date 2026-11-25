@@ -4,6 +4,11 @@ export const targets = Object.freeze({
   codex: '.agents/skills',
 });
 
+export function getSkillInvocations(tool, manual) {
+  const prefix = { claude: '/', opencode: '@', codex: '$' }[tool];
+  return [...manual].sort().map((id) => `${prefix}${id}`);
+}
+
 export function splitFrontmatter(text) {
   const match = /^(?:\uFEFF)?---[ \t]*\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m.exec(text);
   return match?.index === 0

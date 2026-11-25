@@ -1,6 +1,6 @@
 import { marked } from './vendor/marked.js';
 import DOMPurify from './vendor/purify.mjs';
-import { fileUrl, generateInstallCommand, getSelection, splitFrontmatter, targets } from './hub-core.js';
+import { fileUrl, generateInstallCommand, getSelection, getSkillInvocations, splitFrontmatter, targets } from './hub-core.js';
 
 const $ = (id) => document.getElementById(id);
 const element = (tag, text, className) => {
@@ -19,6 +19,7 @@ const toolStorageKey = 'skills-hub.target-tool';
 const manual = new Set();
 const skillRows = new Map();
 const fileButtons = new Map();
+const toolHelp = document.querySelectorAll('[data-tool-help]');
 let manifest;
 let activeSkill;
 let previewRequest;
@@ -58,10 +59,42 @@ function renderTree(nodes, parent) {
   parent.append(list);
 }
 
+async function copyField(field, status) {
+  try {
+    await navigator.clipboard.writeText(field.value);
+    status.textContent = 'Kopiert.';
+  } catch {
+    field.select();
+    status.textContent = document.execCommand('copy') ? 'Kopiert.' : 'Befehl markiert. Bitte manuell kopieren.';
+  }
+}
+
+function updateInvocations(tool) {
+  for (const help of toolHelp) help.hidden = help.dataset.toolHelp !== tool;
+  const list = $('skill-invocations');
+  const status = $('invocation-status');
+  const invocations = getSkillInvocations(tool, manual);
+  status.textContent = '';
+  list.hidden = !invocations.length;
+  list.replaceChildren(...invocations.map((invocation) => {
+    const item = element('li', undefined, 'controls');
+    const field = element('input', undefined, 'invocation');
+    field.value = invocation;
+    field.readOnly = true;
+    field.setAttribute('aria-label', `Skill-Aufruf ${invocation}`);
+    const copy = button('Aufruf kopieren', 'quiet');
+    copy.setAttribute('aria-label', `Aufruf ${invocation} kopieren`);
+    copy.addEventListener('click', () => copyField(field, status));
+    item.append(field, copy);
+    return item;
+  }));
+}
+
 function updateSelection() {
   const tool = $('tool').value;
   $('target').textContent = targets[tool];
   $('copy-status').textContent = '';
+  updateInvocations(tool);
   if (!manifest) return;
   const { ids, requiredBy } = getSelection(manifest.skills, manual);
   for (const [id, { checkbox, reason }] of skillRows) {
@@ -198,15 +231,7 @@ $('tool').addEventListener('change', () => {
   updateSelection();
 });
 $('clear').addEventListener('click', () => { manual.clear(); updateSelection(); });
-$('copy').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText($('command').value);
-    $('copy-status').textContent = 'Kopiert.';
-  } catch {
-    $('command').select();
-    $('copy-status').textContent = document.execCommand('copy') ? 'Kopiert.' : 'Befehl markiert. Bitte manuell kopieren.';
-  }
-});
+$('copy').addEventListener('click', () => copyField($('command'), $('copy-status')));
 
 async function init() {
   try {

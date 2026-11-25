@@ -54,6 +54,23 @@
         <button id="copy" class="primary" type="button" disabled>Befehl kopieren</button>
         <span id="copy-status" role="status"></span>
       </div>
+      <section class="after-install" aria-labelledby="after-install-title">
+        <h3 id="after-install-title">Nach der Installation</h3>
+        <div data-tool-help="claude" hidden>
+          <p>Rufe einen Skill mit <code>/skill-name</code> auf. <code>/skills</code> zeigt die verfügbaren Skills.</p>
+          <p class="muted">Claude Code erkennt lokale Änderungen in der laufenden Sitzung. Fehlt ein Skill, führe <code>/reload-skills</code> aus.</p>
+        </div>
+        <div data-tool-help="opencode" hidden>
+          <p>Erwähne den Skill mit <code>@skill-id</code> im Prompt. Das <code>/</code>-Menü zeigt Commands, keine Skills. Die registrierten Skills siehst du im Projektterminal mit <code>opencode api skill.list</code>.</p>
+          <p class="muted">Fehlt ein Skill in OpenCode V2, lade die Konfiguration mit <code>/reload</code> oder im Terminal mit <code>opencode reload</code> neu. Wenn das nicht hilft, kannst du den lokalen Hintergrunddienst mit <code>opencode service restart</code> neu starten.</p>
+        </div>
+        <div data-tool-help="codex" hidden>
+          <p>Erwähne den Skill mit <code>$skill-name</code> im Prompt. <code>/skills</code> oder die Eingabe von <code>$</code> öffnet die Skill-Auswahl.</p>
+          <p class="muted">Codex erkennt neue und geänderte Skills automatisch. Fehlt ein Skill, starte Codex neu.</p>
+        </div>
+        <ul id="skill-invocations" aria-label="Aufrufe für direkt ausgewählte Skills" hidden></ul>
+        <p id="invocation-status" class="muted" role="status"></p>
+      </section>
     </section>
   </main>
 </body>

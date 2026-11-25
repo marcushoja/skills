@@ -84,6 +84,11 @@ select, .quiet, .primary { padding: .35rem .65rem; border: 1px solid var(--borde
 .quiet:hover:not(:disabled), select:hover { border-color: var(--accent); }
 .primary:hover:not(:disabled) { background: #adf5e1; }
 textarea { display: block; width: 100%; padding: .7rem; margin-top: .25rem; resize: vertical; font: .85rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.after-install { margin-top: 1rem; padding: .85rem; border-inline-start: 3px solid var(--accent); background: var(--inset); }
+.after-install h3 { margin: 0 0 .4rem; font-size: 1rem; }
+.after-install code { overflow-wrap: anywhere; }
+#skill-invocations { list-style: none; padding: 0; margin: .75rem 0 0; }
+.invocation { width: min(100%, 27rem); padding: .35rem .65rem; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; font: .85rem/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
 
 @media (max-width: 48rem) {
   .top-actions { justify-items: start; }
