@@ -1,7 +1,14 @@
+import { renderPowerShellInstaller } from './powershell-installer.js';
+
 export const targets = Object.freeze({
   claude: '.claude/skills',
   opencode: '.opencode/skills',
   codex: '.agents/skills',
+});
+
+export const terminals = Object.freeze({
+  bash: 'Bash',
+  powershell: 'PowerShell',
 });
 
 export function getSkillInvocations(tool, manual) {
@@ -128,40 +135,55 @@ for id in "$@"; do check_destination "$id"; done
 stage=$(mktemp -d "$target/.skills-hub.XXXXXXXX")
 mkdir -- "$stage/new" "$stage/backup"`;
 
-export function generateInstallCommand(skills, manual, tool, downloadBaseUrl) {
+export function generateInstallCommand(skills, manual, tool, downloadBaseUrl, terminal = 'bash') {
   if (!Object.hasOwn(targets, tool)) throw new Error('Unbekanntes Ziel-Tool.');
+  if (!Object.hasOwn(terminals, terminal)) throw new Error('Unbekanntes Terminal.');
   const { ids } = getSelection(skills, manual);
   if (!ids.length) return '';
   const base = normalizeBaseUrl(downloadBaseUrl);
   if (!base) throw new Error('Keine Download-URL verfügbar.');
-  const redirects = base.startsWith('https:') ? '=https' : '=http,https';
-  const lines = [
-    "bash <<'SKILLS_HUB_INSTALL'",
-    '# Im Projektstamm ausführen. Eigene und nicht ausgewählte Skill-Ordner bleiben unverändert.',
-    '# Alle Dateien werden heruntergeladen und geprüft, bevor ein Hub-Skill ersetzt wird.',
-    `target=${quote(`./${targets[tool]}`)}`,
-    `set -- ${ids.map(quote).join(' ')}`,
-    '',
-    installer,
-    '',
-    '# Erst alles herunterladen und prüfen, dann bestehende Installationen ersetzen.',
-  ];
-  for (const id of ids) {
+  const httpsOnly = base.startsWith('https:');
+  const entries = ids.map((id) => {
     if (!/^[a-z0-9-]+$/.test(id)) throw new Error('Ungültiger Skill-Name im Manifest.');
     const skill = skills[id];
-    for (const file of skill.files) {
+    const files = skill.files.map((file) => {
       const parts = pathParts(file);
       if (parts.some((part) => part.startsWith('.'))) throw new Error('Versteckter Dateipfad im Manifest.');
       const url = fileUrl(base, skill.repoPath, file);
       const info = skill.fileInfo[file];
       if (!/^[a-f0-9]{64}$/.test(info?.sha256)) throw new Error('Ungültige Prüfsumme im Manifest.');
+      return { file, parts, url, sha256: info.sha256, executable: info.executable };
+    });
+    return { id, files };
+  });
+  const target = targets[tool];
+  return terminal === 'powershell'
+    ? renderPowerShellInstaller(target, entries, httpsOnly)
+    : renderBashInstaller(target, entries, httpsOnly);
+}
+
+function renderBashInstaller(target, entries, httpsOnly) {
+  const redirects = httpsOnly ? '=https' : '=http,https';
+  const lines = [
+    "bash <<'SKILLS_HUB_INSTALL'",
+    '# Im Projektstamm ausführen. Eigene und nicht ausgewählte Skill-Ordner bleiben unverändert.',
+    '# Alle Dateien werden heruntergeladen und geprüft, bevor ein Hub-Skill ersetzt wird.',
+    `target=${quote(`./${target}`)}`,
+    `set -- ${entries.map(({ id }) => quote(id)).join(' ')}`,
+    '',
+    installer,
+    '',
+    '# Erst alles herunterladen und prüfen, dann bestehende Installationen ersetzen.',
+  ];
+  for (const { id, files } of entries) {
+    for (const { file, parts, url, sha256, executable } of files) {
       const stagedFile = `"$stage/new/"${quote(`${id}/${file}`)}`;
       lines.push(
         `mkdir -p -- "$stage/new/"${quote([id, ...parts.slice(0, -1)].join('/'))}`,
         `curl --disable -fsSL --globoff --proto '=http,https' --proto-redir '${redirects}' -- ${quote(url)} > ${stagedFile}`,
-        `check_hash '${info.sha256}' ${stagedFile}`,
+        `check_hash '${sha256}' ${stagedFile}`,
       );
-      if (info.executable) lines.push(`chmod +x -- ${stagedFile}`);
+      if (executable) lines.push(`chmod +x -- ${stagedFile}`);
     }
     lines.push(`printf '%s\\n' ${quote(`skills-hub:${id}`)} > "$stage/new/"${quote(id)}/"$marker"`);
   }

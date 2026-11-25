@@ -37,7 +37,10 @@ Für eine eigene Sammlung kannst du [das Repo auf GitHub forken](https://github.
 
 ## Skills installieren oder aktualisieren
 
-Wähle die Skills und das Ziel-Tool, prüfe den kommentierten Befehl und führe ihn im Stamm des Zielprojekts aus. Die Tool-Auswahl wird in deinem Browser gespeichert. Benötigt werden Bash, `curl` und `sha256sum` oder `shasum`. Unterstützte Ziele sind `.claude/skills`, `.opencode/skills` und `.agents/skills`.
+Wähle die Skills, das Ziel-Tool und das Terminal. Prüfe den kommentierten Block und füge ihn vollständig im Stamm des Zielprojekts ein. Ziel-Tool und Terminal werden getrennt im Browser gespeichert. Das Ziel-Tool bestimmt den Installationsordner: `.claude/skills`, `.opencode/skills` oder `.agents/skills`.
+
+- **Bash (Linux, macOS, WSL)** ist der Standard. Benötigt werden Bash, `curl` und `sha256sum` oder `shasum`.
+- **PowerShell (Windows)** funktioniert mit Windows PowerShell 5.1 und PowerShell 7, ohne Adminrechte und ohne Änderung der Ausführungsrichtlinie. POSIX-Ausführungsbits werden nur in Bash gesetzt.
 
 Der Befehl lädt zuerst die gesamte Auswahl in ein temporäres Verzeichnis und prüft jede Datei gegen die SHA-256-Prüfsumme im Manifest. Dann tauscht er nur ausgewählte, vom Hub verwaltete Ordner aus. Eigene oder anderweitig installierte Skills ohne passende `.skills-hub-managed`-Markierung werden nicht überschrieben; bei einer Namenskollision bricht der Befehl vor dem Austausch ab. Manuelle Änderungen in einem **Hub-verwalteten** Ordner werden beim Aktualisieren ersetzt. Nicht ausgewählte Ordner bleiben immer erhalten.
 
@@ -48,5 +51,7 @@ npm ci --ignore-scripts
 npm test
 npm run build
 ```
+
+Für die PowerShell-Integrationstests muss `pwsh` im Pfad liegen. Mit `SKILLS_HUB_POWERSHELL` lässt sich ein anderes Programm angeben (unter Windows z. B. `powershell.exe` für 5.1). In CI laufen die PowerShell-Tests für beide Versionen auf Windows.
 
 Der Build legt die generierte Website in `dist/` ab. Die Projekt-Spezifikation steht in [`skills_hub_spezifikation.md`](skills_hub_spezifikation.md); bei der Installation gilt das oben beschriebene sichere Ersetzen statt eines globalen „Clean Sync“.

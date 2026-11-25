@@ -125,7 +125,7 @@ export function buildSite(root, downloadBaseUrl = '') {
   // dist/ is generated output, including skill files that may disappear between builds.
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(path.join(out, 'vendor'), { recursive: true });
-  for (const file of ['index.html', 'app.js', 'style.css', 'hub-core.js']) {
+  for (const file of ['index.html', 'app.js', 'style.css', 'hub-core.js', 'powershell-installer.js']) {
     fs.copyFileSync(path.join(webDir, file), path.join(out, file));
   }
   const modules = path.join(webDir, '..', 'node_modules');

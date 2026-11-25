@@ -1,6 +1,6 @@
 import { marked } from './vendor/marked.js';
 import DOMPurify from './vendor/purify.mjs';
-import { fileUrl, generateInstallCommand, getSelection, getSkillInvocations, splitFrontmatter, targets } from './hub-core.js';
+import { fileUrl, generateInstallCommand, getSelection, getSkillInvocations, splitFrontmatter, targets, terminals } from './hub-core.js';
 
 const $ = (id) => document.getElementById(id);
 const element = (tag, text, className) => {
@@ -15,7 +15,10 @@ const button = (text, className) => {
   return node;
 };
 const sourceBase = window.location.origin;
-const toolStorageKey = 'skills-hub.target-tool';
+const preferences = [
+  ['tool', 'skills-hub.target-tool', targets],
+  ['terminal', 'skills-hub.terminal', terminals],
+];
 const manual = new Set();
 const skillRows = new Map();
 const fileButtons = new Map();
@@ -92,7 +95,9 @@ function updateInvocations(tool) {
 
 function updateSelection() {
   const tool = $('tool').value;
+  const terminal = $('terminal').value;
   $('target').textContent = targets[tool];
+  $('command-help').textContent = `Kopiere den gesamten Block und füge ihn im Projektstamm in ${terminals[terminal]} ein.`;
   $('copy-status').textContent = '';
   updateInvocations(tool);
   if (!manifest) return;
@@ -107,7 +112,7 @@ function updateSelection() {
   $('selection').textContent = ids.length ? `${ids.length} insgesamt · ${manual.size} direkt ausgewählt` : 'Keine Auswahl';
   $('clear').disabled = !manual.size;
   try {
-    $('command').value = generateInstallCommand(manifest.skills, manual, tool, manifest.downloadBaseUrl || sourceBase);
+    $('command').value = generateInstallCommand(manifest.skills, manual, tool, manifest.downloadBaseUrl || sourceBase, terminal);
   } catch (error) {
     $('command').value = '';
     $('copy-status').textContent = error.message;
@@ -226,18 +231,23 @@ async function showFile(skill, file) {
   }
 }
 
-$('tool').addEventListener('change', () => {
-  try { window.localStorage.setItem(toolStorageKey, $('tool').value); } catch { /* Storage is optional. */ }
-  updateSelection();
-});
+for (const [id, key] of preferences) {
+  $(id).addEventListener('change', () => {
+    try { window.localStorage.setItem(key, $(id).value); } catch { /* Storage is optional. */ }
+    updateSelection();
+  });
+}
 $('clear').addEventListener('click', () => { manual.clear(); updateSelection(); });
 $('copy').addEventListener('click', () => copyField($('command'), $('copy-status')));
 
 async function init() {
-  try {
-    const savedTool = window.localStorage.getItem(toolStorageKey);
-    if (Object.hasOwn(targets, savedTool)) $('tool').value = savedTool;
-  } catch { /* Fall back to the default if storage is unavailable. */ }
+  for (const [id, key, options] of preferences) {
+    $(id).selectedIndex = 0;
+    try {
+      const saved = window.localStorage.getItem(key);
+      if (Object.hasOwn(options, saved)) $(id).value = saved;
+    } catch { /* Fall back to the default if storage is unavailable. */ }
+  }
   updateSelection();
   try {
     const response = await fetch('./manifest.json', { cache: 'no-store' });

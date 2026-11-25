@@ -41,15 +41,18 @@
         <h2 id="install-title">Im Projekt installieren</h2>
         <button id="clear" class="quiet" type="button" disabled>Auswahl zurücksetzen</button>
       </div>
-      <p class="muted">Führe den Befehl im Projektstamm aus. Der Hub ersetzt nur seine eigenen, ausgewählten Skill-Ordner.</p>
+      <p class="muted">Der Hub ersetzt nur seine eigenen, ausgewählten Skill-Ordner.</p>
       <div class="controls">
         <label for="tool">Ziel-Tool</label>
         <select id="tool"><option value="claude">Claude Code</option><option value="opencode">OpenCode</option><option value="codex">Codex</option></select>
         <code id="target"></code>
+        <label for="terminal">Terminal</label>
+        <select id="terminal"><option value="bash">Bash (Linux, macOS, WSL)</option><option value="powershell">PowerShell (Windows)</option></select>
         <span id="selection" class="muted" role="status"></span>
       </div>
       <label for="command">Installationsbefehl</label>
-      <textarea id="command" readonly rows="8" wrap="off" spellcheck="false" placeholder="Wähle mindestens einen Skill."></textarea>
+      <p id="command-help" class="muted">Kopiere den gesamten Block und füge ihn im Projektstamm in Bash ein.</p>
+      <textarea id="command" aria-describedby="command-help" readonly rows="8" wrap="off" spellcheck="false" placeholder="Wähle mindestens einen Skill."></textarea>
       <div class="controls">
         <button id="copy" class="primary" type="button" disabled>Befehl kopieren</button>
         <span id="copy-status" role="status"></span>

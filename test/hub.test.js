@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -133,12 +133,18 @@ test('Build liefert exakt die katalogisierten Skill-Dateien aus, auch nach erneu
   assert.throws(() => normalizeBaseUrl('https://user:pass@example.org'), /DOWNLOAD_BASE_URL/);
 });
 
-async function installFixture(t) {
+const powershell = process.env.SKILLS_HUB_POWERSHELL || 'pwsh';
+const skipPowerShell = !process.env.SKILLS_HUB_POWERSHELL &&
+  spawnSync(powershell, ['-NoProfile', '-Command', 'exit 0']).error?.code === 'ENOENT'
+  ? 'PowerShell nicht verfügbar' : false;
+
+async function installFixture(t, terminal = 'bash') {
   const repo = tempDir(t);
-  const project = tempDir(t);
-  addSkill(repo, 'workflows/Doku', 'mh-wf-demo', 'Erfordert `mh-doc-demo`.');
+  const project = path.join(tempDir(t), 'Projekt [1] mit Leerzeichen');
+  fs.mkdirSync(project);
+  const workflow = addSkill(repo, 'workflows/Doku', 'mh-wf-demo', 'Erfordert `mh-doc-demo`.');
   addSkill(repo, 'skills/Doku', 'mh-doc-demo', 'Baustein.');
-  const filename = "scripts/hello [1] # ' $(touch SHOULD_NOT_EXIST).sh";
+  const filename = "scripts/hello [1] # ' ’ ä $(touch SHOULD_NOT_EXIST).sh";
   const content = '#!/bin/sh\nprintf "%s\\n" hello\n';
   fs.chmodSync(write(repo, `_SKILLS/skills/Doku/mh-doc-demo/${filename}`, content), 0o755);
   const { skills } = buildSite(repo);
@@ -154,11 +160,17 @@ async function installFixture(t) {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   t.after(() => server.close());
   function install(tool = 'claude') {
-    const command = generateInstallCommand(skills, new Set(['mh-wf-demo']), tool, `http://127.0.0.1:${server.address().port}`);
+    const command = generateInstallCommand(skills, new Set(['mh-wf-demo']), tool, `http://127.0.0.1:${server.address().port}`, terminal);
+    if (terminal === 'powershell') {
+      write(project, 'install.ps1', command);
+      // Execute the text as pasted input, without changing the execution policy.
+      return exec(powershell, ['-NoProfile', '-NonInteractive', '-Command',
+        "& ([scriptblock]::Create([IO.File]::ReadAllText('install.ps1')))"], { cwd: project, timeout: 15000 });
+    }
     const script = write(project, 'install.sh', command);
     return exec('bash', [script], { cwd: project, timeout: 5000 });
   }
-  return { project, install, filename, content, requests, override: (fn) => { override = fn; } };
+  return { project, install, filename, content, workflowBody: fs.readFileSync(workflow, 'utf8'), requests, override: (fn) => { override = fn; } };
 }
 
 test('Echter Bash/curl-Install: alle Ziele, flach, Pfadzeichen, Ausführbarkeit und rückstandsfrei aktualisiert', async (t) => {
@@ -215,5 +227,109 @@ test('Ziel-Symlinks werden nicht verfolgt', async (t) => {
   fs.symlinkSync(external, path.join(project, '.claude'));
   await assert.rejects(install(), /Kein Einbau über einen Symlink/);
   assert.deepEqual(fs.readdirSync(external), []);
+  assert.deepEqual(requests, []);
+});
+
+test('PowerShell-Generator lehnt POSIX-Dateinamen ab, die unter Windows ungültig sind', () => {
+  const filename = 'references/aux.txt';
+  const skills = { 'mh-demo': {
+    allDeps: [],
+    repoPath: 'skills/mh-demo',
+    files: [filename],
+    fileInfo: { [filename]: { sha256: '0'.repeat(64) } },
+  } };
+  const manual = new Set(['mh-demo']);
+  assert.match(generateInstallCommand(skills, manual, 'claude', 'http://localhost'), /^bash /);
+  assert.throws(() => generateInstallCommand(skills, manual, 'claude', 'http://localhost', 'powershell'),
+    /Unter Windows ist dieser Dateipfad nicht möglich/);
+});
+
+test('PowerShell installiert und aktualisiert Abhängigkeiten, Sonderzeichen und alle Ziele', { skip: skipPowerShell }, async (t) => {
+  const { project, install, filename, content, workflowBody, override } = await installFixture(t, 'powershell');
+  const external = tempDir(t);
+  const untouched = write(external, 'untouched.txt', 'bleibt erhalten');
+  // Follow a permitted relative redirect, serving the original bytes at its target.
+  override((file, response) => {
+    if (file === 'workflows/Doku/mh-wf-demo/SKILL.md') response.writeHead(302, { Location: '/redirected' }).end();
+    else if (file === 'redirected') response.end(workflowBody);
+    else return false;
+    return true;
+  });
+  for (const [tool, target] of Object.entries(targets)) {
+    const skill = `${target}/mh-doc-demo`;
+    const own = write(project, `${target}/mein-skill/SKILL.md`, 'manuell');
+    const unselected = write(project, `${target}/mh-unselected/.skills-hub-managed`, 'skills-hub:mh-unselected\n');
+    const { stdout } = await install(tool);
+    assert.match(stdout, /Installiert unter/);
+    assert.equal(fs.readFileSync(path.join(project, skill, filename), 'utf8'), content);
+    assert.equal(fs.readFileSync(path.join(project, `${target}/mh-wf-demo/SKILL.md`), 'utf8'), workflowBody);
+    assert.equal(fs.readFileSync(path.join(project, skill, '.skills-hub-managed'), 'utf8'), 'skills-hub:mh-doc-demo\n');
+    const stale = write(project, `${skill}/stale.md`, 'stale');
+    fs.symlinkSync(external, path.join(project, skill, 'verlinkt'), process.platform === 'win32' ? 'junction' : 'dir');
+    await install(tool);
+    assert.equal(fs.existsSync(stale), false);
+    assert.equal(fs.existsSync(path.join(project, skill, 'verlinkt')), false);
+    assert.equal(fs.readFileSync(untouched, 'utf8'), 'bleibt erhalten');
+    assert.equal(fs.readFileSync(own, 'utf8'), 'manuell');
+    assert.equal(fs.existsSync(unselected), true);
+    assert.deepEqual(fs.readdirSync(path.join(project, target)).sort(), ['mein-skill', 'mh-doc-demo', 'mh-unselected', 'mh-wf-demo']);
+  }
+  assert.equal(fs.existsSync(path.join(project, 'SHOULD_NOT_EXIST')), false);
+});
+
+test('PowerShell schützt eigene Skills und respektiert die Installationssperre', { skip: skipPowerShell }, async (t) => {
+  const { project, install, requests } = await installFixture(t, 'powershell');
+  const target = path.join(project, '.claude/skills');
+  const custom = write(target, 'mh-wf-demo/SKILL.md', 'eigener Workflow');
+  const lock = path.join(target, '.skills-hub.lock');
+  for (const makeLock of [() => fs.mkdirSync(lock), () => fs.writeFileSync(lock, 'parallel')]) {
+    makeLock();
+    await assert.rejects(install(), /Installationssperre vorhanden/);
+    assert.ok(fs.existsSync(lock));
+    fs.rmSync(lock, { recursive: true });
+  }
+  await assert.rejects(install(), /Nicht vom Skills Hub verwalteter Eintrag bleibt erhalten/);
+  assert.deepEqual(requests, []);
+  assert.equal(fs.readFileSync(custom, 'utf8'), 'eigener Workflow');
+  assert.deepEqual(fs.readdirSync(target), ['mh-wf-demo']);
+});
+
+test('PowerShell erhält alte Skills bei HTTP-, Redirect- und Prüfsummenfehlern', { skip: skipPowerShell }, async (t) => {
+  const { project, install, override } = await installFixture(t, 'powershell');
+  const target = path.join(project, '.claude/skills');
+  await install();
+  const previous = write(target, 'mh-doc-demo/SKILL.md', 'vorheriger Baustein');
+  const workflow = write(target, 'mh-wf-demo/SKILL.md', 'vorheriger Workflow');
+  for (const [status, headers, error] of [
+    [404, {}, /HTTP 404/],
+    [302, { Location: 'file:///unexpected' }, /Nicht erlaubtes Download-Protokoll/],
+    [200, {}, /Prüfsumme stimmt nicht/],
+  ]) {
+    override((file, response) => {
+      if (!file.startsWith('workflows/')) return false;
+      response.writeHead(status, headers).end('unerwarteter Inhalt');
+      return true;
+    });
+    await assert.rejects(install(), error);
+    assert.equal(fs.readFileSync(previous, 'utf8'), 'vorheriger Baustein');
+    assert.equal(fs.readFileSync(workflow, 'utf8'), 'vorheriger Workflow');
+    assert.deepEqual(fs.readdirSync(target).sort(), ['mh-doc-demo', 'mh-wf-demo']);
+  }
+});
+
+test('PowerShell folgt weder Ziel-Junctions/Symlinks noch verlinkten Skill-Ordnern', { skip: skipPowerShell }, async (t) => {
+  const { project, install, requests } = await installFixture(t, 'powershell');
+  const external = tempDir(t);
+  write(external, '.skills-hub-managed', 'skills-hub:mh-doc-demo\n');
+  const targetParent = path.join(project, '.claude');
+  const type = process.platform === 'win32' ? 'junction' : 'dir';
+  fs.symlinkSync(external, targetParent, type);
+  await assert.rejects(install(), /Kein Einbau über einen Symlink oder eine Junction/);
+  fs.unlinkSync(targetParent);
+  const target = path.join(targetParent, 'skills');
+  fs.mkdirSync(target, { recursive: true });
+  fs.symlinkSync(external, path.join(target, 'mh-doc-demo'), type);
+  await assert.rejects(install(), /Nicht vom Skills Hub verwalteter Eintrag bleibt erhalten/);
+  assert.deepEqual(fs.readdirSync(external), ['.skills-hub-managed']);
   assert.deepEqual(requests, []);
 });

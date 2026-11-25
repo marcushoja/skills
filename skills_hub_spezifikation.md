@@ -6,8 +6,8 @@ Eine leichtgewichtige, rein statische Webanwendung ohne Backend, ohne Datenbank 
 Die Anwendung:
 1. Liest beim Build `_SKILLS/workflows/` und `_SKILLS/skills/` ein, validiert Struktur und Metadaten und erzeugt eine statische `manifest.json`.
 2. Stellt im Browser eine zweigeteilte Oberfläche bereit: links eine aufklappbare Kategorie-Baumstruktur mit Checkboxen, rechts die Vorschau der gewählten `SKILL.md` (inkl. Abhängigkeiten und lesbarer Zusatzdateien).
-3. Generiert ein Copy-Paste-Shell-Kommando (`rm`, `mkdir`, `curl`), das alle ausgewählten Skills inkl. ihrer Abhängigkeiten **flach** in das Zielprojekt des Nutzers (für **Claude Code**, **OpenCode** oder **Codex**) kopiert.
-4. Der Build kopiert die katalogisierten Dateien nach `dist/workflows/` und `dist/skills/`. Nginx liefert sie wie bisher unter `/workflows/` und `/skills/` aus; `_SKILLS/` ist nur der Quellordner. Das generierte `curl`-Kommando lädt die Dateien direkt vom eigenen Server (`window.location.origin`), sodass das Git-Repository privat bleiben kann.
+3. Generiert einen kopierbaren Block für Bash oder PowerShell, der alle ausgewählten Skills inkl. ihrer Abhängigkeiten **flach** in das Zielprojekt des Nutzers (für **Claude Code**, **OpenCode** oder **Codex**) kopiert.
+4. Der Build kopiert die katalogisierten Dateien nach `dist/workflows/` und `dist/skills/`. Nginx liefert sie unter `/workflows/` und `/skills/` aus; `_SKILLS/` ist nur der Quellordner. Standardmäßig lädt der Installationsbefehl die Dateien direkt vom eigenen Server (`window.location.origin`), sodass das Git-Repository privat bleiben kann.
 
 ---
 
@@ -295,7 +295,7 @@ console.log(`Manifest erfolgreich gebaut: ${skillsMap.size} Skills/Workflows.`);
      * **Claude Code** -> `.claude/skills`
      * **OpenCode** -> `.opencode/skills`
      * **Codex** -> `.agents/skills`
-   * **Checkbox „Clean Sync“ (Standard: deaktiviert):** Fügt vorab `rm -rf <target>` ein, um den gesamten Ziel-`skills/`-Ordner zu leeren.
+   * **Terminal-Auswahl:** Bash (Standard; Linux, macOS, WSL) oder PowerShell (Windows; 5.1 und 7). Terminal und Ziel-Tool werden unabhängig in `localStorage` gespeichert. Die Skill-Auswahl ändert sich beim Umschalten nicht.
    * **Readonly-Textarea + Copy-Button:** Zeigt das generierte Shell-Kommando live an und bietet Ein-Klick-Kopieren in die Zwischenablage.
 
 ---
@@ -304,26 +304,8 @@ console.log(`Manifest erfolgreich gebaut: ${skillsMap.size} Skills/Workflows.`);
 
 * **Basis-URL:** `manifest.downloadBaseUrl || window.location.origin` (ohne abschließenden Slash).
 * **Auswahlmenge:** Vereinigungsmenge aller manuell angehakten Skills + deren `allDeps` (dedupliziert, alphabetisch sortiert).
-* **Generierungslogik:**
-  1. Ist „Clean Sync“ aktiv, beginnt der Befehl mit `rm -rf <target> && \`.
-  2. Für jeden ausgewählten Skill `<id>`:
-     * Gezieltes Vorab-Löschen des einzelnen Skill-Ordners (Standard, nicht optional – verhindert Dateileichen nach Umbenennungen/Löschungen):
-       `rm -rf <target>/<id> && \`
-     * Anlegen des Skill-Ordners sowie aller benötigten Unterordner aus `skill.files` (z. B. `references/`, `scripts/`):
-       `mkdir -p <target>/<id> <target>/<id>/references && \`
-     * Download jeder einzelnen Datei per `curl`:
-       `curl -fsSL "<baseUrl>/<repoPath>/<file>" -o "<target>/<id>/<file>"`
-  3. Verknüpfung aller Schritte mit `&& \`.
-
-### Beispiel-Output (Claude Code, ohne Clean Sync)
-```bash
-rm -rf .claude/skills/mh-java-clean-code && \
-mkdir -p .claude/skills/mh-java-clean-code && \
-curl -fsSL "https://skills.example.de/skills/java/mh-java-clean-code/SKILL.md" -o ".claude/skills/mh-java-clean-code/SKILL.md" && \
-rm -rf .claude/skills/mh-wf-java-feature && \
-mkdir -p .claude/skills/mh-wf-java-feature && \
-curl -fsSL "https://skills.example.de/workflows/java/mh-wf-java-feature/SKILL.md" -o ".claude/skills/mh-wf-java-feature/SKILL.md"
-```
+* **Installation:** Beide Varianten prüfen den Zielpfad, sperren parallele Installationen und laden alle ausgewählten Dateien zuerst in einen temporären Ordner auf demselben Dateisystem. Jede Datei muss die im Manifest hinterlegte SHA-256-Prüfsumme erfüllen.
+* **Aktualisierung:** Nur ausgewählte Ordner mit passender `.skills-hub-managed`-Markierung werden ersetzt. Eigene und nicht ausgewählte Ordner bleiben unverändert. Wird der Einbau eines gesicherten Ordners unterbrochen, versucht der Befehl beim fehlgeschlagenen Austausch die Sicherung zurückzulegen; sonst bleibt sie zur manuellen Wiederherstellung erhalten.
 
 ---
 
