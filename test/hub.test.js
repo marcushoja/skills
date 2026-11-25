@@ -20,6 +20,16 @@ test('Skill-Aufrufe verwenden die echten IDs und das Präfix des Ziel-Tools', ()
   assert.deepEqual(getSkillInvocations('opencode', new Set()), []);
 });
 
+test('ADHS-Modus ist ein eigenständiger Skill mit MIT-Lizenz und MH-Aufruf', () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const { skills } = createManifest(root);
+  const id = 'mh-adhs-modus';
+  assert.equal(skills[id].repoPath, `skills/produktivitaet/${id}`);
+  assert.deepEqual(skills[id].files, ['SKILL.md', 'LICENSE']);
+  assert.deepEqual(getSelection(skills, new Set([id])).ids, [id]);
+  assert.deepEqual(getSkillInvocations('opencode', new Set([id])), [`@${id}`]);
+});
+
 test('Deutsches Startpaket liefert Abhängigkeiten, Begleitdateien und Lizenzen aus', () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const { skills } = createManifest(root);
