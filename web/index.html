@@ -50,6 +50,11 @@
         <header class="preview-header">
           <div class="title-row"><h2 id="preview-title">Vorschau</h2><span id="skill-type" class="badge" hidden></span></div>
           <p id="description" class="muted">Wähle einen Skill aus dem Katalog.</p>
+          <p id="preview-invocation" class="muted" aria-live="polite" hidden>
+            <strong id="preview-invocation-label">Aufruf</strong>:
+            <span id="preview-invocation-mode"></span>
+            <span id="preview-manual-invocation" hidden> · <code id="preview-invocation-command"></code></span>
+          </p>
         </header>
         <div id="dependencies" class="dependencies" hidden></div>
         <div id="files" class="files" role="group" aria-label="Dateivorschau" hidden></div>

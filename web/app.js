@@ -1,6 +1,6 @@
 import { marked } from './vendor/marked.js';
 import DOMPurify from './vendor/purify.mjs';
-import { fileUrl, generateInstallCommand, getSelection, getSkillInvocations, splitFrontmatter, targets, terminals } from './hub-core.js';
+import { fileUrl, generateInstallCommand, getSelection, getSkillInvocation, getSkillInvocations, splitFrontmatter, targets, terminals } from './hub-core.js';
 
 const $ = (id) => document.getElementById(id);
 const element = (tag, text, className) => {
@@ -27,6 +27,7 @@ const toolHelp = document.querySelectorAll('[data-tool-help]');
 const templateChoices = $('template-choices');
 let manifest;
 let activePreview;
+let previewSkill;
 let previewRequest;
 
 function renderTree(nodes, parent) {
@@ -90,7 +91,7 @@ function updateInvocations(tool) {
   for (const help of toolHelp) help.hidden = help.dataset.toolHelp !== tool;
   const list = $('skill-invocations');
   const status = $('invocation-status');
-  const invocations = getSkillInvocations(tool, manual);
+  const invocations = getSkillInvocations(tool, manual, manifest?.skills);
   status.textContent = '';
   list.hidden = !invocations.length;
   list.replaceChildren(...invocations.map((invocation) => {
@@ -145,8 +146,23 @@ function setActivePreview(name) {
   activePreview.setAttribute('aria-current', 'true');
 }
 
+function updatePreviewInvocation() {
+  $('preview-invocation').hidden = !previewSkill;
+  if (!previewSkill) return;
+  const tool = $('tool');
+  const { automatic, manual } = previewSkill.invocation[tool.value];
+  $('preview-invocation-label').textContent = `Aufruf in ${tool.selectedOptions[0].textContent}`;
+  $('preview-invocation-mode').textContent = automatic
+    ? 'Bei passender Aufgabe automatisch möglich'
+    : manual ? 'Nur manuell' : 'Nicht aufrufbar';
+  $('preview-manual-invocation').hidden = !manual;
+  if (manual) $('preview-invocation-command').textContent = getSkillInvocation(tool.value, previewSkill.id);
+}
+
 function showProjectTemplate(template, name) {
   setActivePreview(name);
+  previewSkill = undefined;
+  updatePreviewInvocation();
   $('preview-title').textContent = template.title;
   $('skill-type').textContent = 'Projektvorlage';
   $('skill-type').hidden = false;
@@ -160,6 +176,8 @@ function showProjectTemplate(template, name) {
 function showSkill(id) {
   const skill = manifest.skills[id];
   setActivePreview(skillRows.get(id).name);
+  previewSkill = skill;
+  updatePreviewInvocation();
   $('preview-title').textContent = id;
   $('skill-type').textContent = skill.type === 'workflow' ? 'Workflow' : 'Skill';
   $('skill-type').hidden = false;
@@ -272,6 +290,7 @@ for (const [id, key] of preferences) {
   $(id).addEventListener('change', () => {
     try { window.localStorage.setItem(key, $(id).value); } catch { /* Storage is optional. */ }
     updateSelection();
+    if (id === 'tool') updatePreviewInvocation();
   });
 }
 templateChoices.addEventListener('change', updateSelection);

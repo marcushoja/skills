@@ -26,11 +26,22 @@ function listFiles(dir, prefix = '') {
   });
 }
 
+function parseYaml(text, file) {
+  const document = parseDocument(text);
+  if (document.errors.length) throw new Error(`${file}: Ungültiges YAML: ${document.errors[0].message}`);
+  return document;
+}
+
+function claudeBoolean(value, fallback) {
+  if (/^(true|yes|on|1)$/i.test(String(value))) return true;
+  if (/^(false|no|off|0)$/i.test(String(value))) return false;
+  return fallback;
+}
+
 function parseSkill(raw, file, id) {
   const { frontmatter, body } = splitFrontmatter(raw);
   if (frontmatter === null) throw new Error(`${file}: YAML-Frontmatter fehlt`);
-  const document = parseDocument(frontmatter);
-  if (document.errors.length) throw new Error(`${file}: Ungültiges YAML: ${document.errors[0].message}`);
+  const document = parseYaml(frontmatter, file);
   const name = document.get('name');
   const description = document.get('description');
   if (name !== id) throw new Error(`${file}: Frontmatter-Feld "name" muss "${id}" entsprechen`);
@@ -42,7 +53,19 @@ function parseSkill(raw, file, id) {
   marked.walkTokens(marked.lexer(body), (token) => {
     if (token.type === 'codespan' && token.text !== id) refs.add(token.text);
   });
-  return { description: description.trim(), refs };
+  const disableModel = document.get('disable-model-invocation');
+  const openCodeAuto = document.getIn(['metadata', 'opencode/autoinvoke']);
+  const invocation = {
+    claude: {
+      automatic: !claudeBoolean(disableModel, false),
+      manual: claudeBoolean(document.get('user-invocable'), true),
+    },
+    opencode: {
+      automatic: typeof openCodeAuto === 'boolean' ? openCodeAuto : disableModel !== true,
+      manual: true,
+    },
+  };
+  return { description: description.trim(), invocation, refs };
 }
 
 function scanProjectTemplates(catalogRoot) {
@@ -126,18 +149,24 @@ export function createManifest(root, downloadBaseUrl = '') {
         throw new Error(`Doppelter Skill-Name "${id}": ${skills[id].repoPath} und ${repoPath}`);
       }
 
-      const { description, refs } = parseSkill(fs.readFileSync(skillMd, 'utf8'), skillMd, id);
+      const { description, invocation, refs } = parseSkill(fs.readFileSync(skillMd, 'utf8'), skillMd, id);
       const files = ['SKILL.md', ...listFiles(fullPath).filter((file) => file !== 'SKILL.md').sort()];
+      const codexFile = 'agents/openai.yaml';
+      let codexAuto;
       const fileInfo = Object.fromEntries(files.map((file) => {
         const source = path.join(fullPath, file);
         const bytes = fs.readFileSync(source);
+        if (file === codexFile) {
+          codexAuto = parseYaml(bytes.toString('utf8'), source).getIn(['policy', 'allow_implicit_invocation']);
+        }
         return [file, {
           size: bytes.length,
           sha256: createHash('sha256').update(bytes).digest('hex'),
           executable: Boolean(fs.statSync(source).mode & 0o111),
         }];
       }));
-      skills[id] = { id, type, repoPath, description, files, fileInfo, directDeps: [], allDeps: [] };
+      invocation.codex = { automatic: codexAuto !== false, manual: true };
+      skills[id] = { id, type, repoPath, description, invocation, files, fileInfo, directDeps: [], allDeps: [] };
       skillRefs.set(id, refs);
       return [{ kind: 'skill', id }];
     });

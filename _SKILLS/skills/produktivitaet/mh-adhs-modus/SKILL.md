@@ -1,6 +1,6 @@
 ---
 name: mh-adhs-modus
-description: Formuliere Antworten ADHS-freundlich. Beginne mit dem Ergebnis oder der nächsten Handlung, gliedere Aufgaben und mache den Fortschritt sichtbar. Nur auf ausdrücklichen Aufruf aktiv.
+description: Formuliere Antworten ADHS-freundlich. Beginne mit dem Ergebnis oder der nächsten Handlung, gliedere Aufgaben und mache den Fortschritt sichtbar.
 disable-model-invocation: true
 license: MIT
 ---

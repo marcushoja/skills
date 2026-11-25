@@ -18,6 +18,8 @@ Skills zentral im Team pflegen, aber nur dort installieren, wo sie gebraucht wer
 
 **Namensregeln:** Ordnernamen müssen im ganzen Katalog eindeutig sein und dürfen nur Kleinbuchstaben, Ziffern und Bindestriche enthalten. Workflows beginnen mit `mh-wf-`, Skills mit `mh-`. Jede `SKILL.md` braucht YAML-Frontmatter mit `name` (identisch zum Ordnernamen) und `description` (nicht leer). Für manuell aufgerufene Workflows empfiehlt sich `disable-model-invocation: true`.
 
+**Aufruf:** Die Vorschau zeigt für das gewählte Ziel-Tool, ob der Assistent den Skill bei passender Aufgabe selbst auswählen kann, und nennt den manuellen Aufruf, sofern verfügbar. Für Claude Code und OpenCode schaltet `disable-model-invocation: true` die automatische Auswahl ab. In OpenCode V2 hat `metadata.opencode/autoinvoke` Vorrang. Für Codex setze `policy.allow_implicit_invocation: false` in `agents/openai.yaml`.
+
 ## Projektvorlagen für `AGENTS.md`
 
 Lege in jedem passenden Ordner unter [`_SKILLS/project-templates/`](_SKILLS/project-templates/) eine `AGENTS.md` ab. Die Ordner bilden den Baum; die erste `#`-Überschrift ist der Anzeigename. Ein Ordner kann eine eigene Vorlage und weitere Unterordner haben, zum Beispiel:

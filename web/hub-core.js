@@ -11,9 +11,15 @@ export const terminals = Object.freeze({
   powershell: 'PowerShell',
 });
 
-export function getSkillInvocations(tool, manual) {
+export function getSkillInvocation(tool, id) {
   const prefix = { claude: '/', opencode: '@', codex: '$' }[tool];
-  return [...manual].sort().map((id) => `${prefix}${id}`);
+  return `${prefix}${id}`;
+}
+
+export function getSkillInvocations(tool, manual, skills) {
+  return [...manual].sort()
+    .filter((id) => skills?.[id]?.invocation?.[tool]?.manual !== false)
+    .map((id) => getSkillInvocation(tool, id));
 }
 
 export function splitFrontmatter(text) {

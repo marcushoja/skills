@@ -26,6 +26,11 @@ test('ADHS-Modus ist ein eigenständiger Skill mit MIT-Lizenz und MH-Aufruf', ()
   const id = 'mh-adhs-modus';
   assert.equal(skills[id].repoPath, `skills/produktivitaet/${id}`);
   assert.deepEqual(skills[id].files, ['SKILL.md', 'LICENSE']);
+  assert.deepEqual(skills[id].invocation, {
+    claude: { automatic: false, manual: true },
+    opencode: { automatic: false, manual: true },
+    codex: { automatic: true, manual: true },
+  });
   assert.deepEqual(getSelection(skills, new Set([id])).ids, [id]);
   assert.deepEqual(getSkillInvocations('opencode', new Set([id])), [`@${id}`]);
 });
@@ -75,6 +80,33 @@ function write(root, file, content) {
 function addSkill(root, parent, id, body = '', header = `name: ${id}\ndescription: Ein Beispiel`) {
   return write(root, `_SKILLS/${parent}/${id}/SKILL.md`, `---\n${header}\n---\n\n${body}`);
 }
+
+test('Aufrufstatus beachtet Defaults, OpenCode-Vorrang und Codex-Policy getrennt', (t) => {
+  const repo = tempDir(t);
+  addSkill(repo, 'skills', 'mh-default');
+  addSkill(repo, 'skills', 'mh-off', '', `name: mh-off
+description: Beispiel
+user-invocable: off
+disable-model-invocation: true
+metadata:
+  opencode/autoinvoke: true`);
+  addSkill(repo, 'workflows', 'mh-wf-manual', '', `name: mh-wf-manual
+description: Beispiel
+metadata:
+  opencode/autoinvoke: false`);
+  write(repo, '_SKILLS/workflows/mh-wf-manual/agents/openai.yaml', 'policy:\n  allow_implicit_invocation: false\n');
+  const { skills } = createManifest(repo);
+  const both = { automatic: true, manual: true };
+  const manual = { automatic: false, manual: true };
+  assert.deepEqual(skills['mh-default'].invocation, { claude: both, opencode: both, codex: both });
+  assert.deepEqual(skills['mh-off'].invocation, {
+    claude: { automatic: false, manual: false }, opencode: both, codex: both,
+  });
+  assert.deepEqual(skills['mh-wf-manual'].invocation, { claude: both, opencode: manual, codex: manual });
+  const selected = new Set(['mh-off', 'mh-wf-manual']);
+  assert.deepEqual(getSkillInvocations('claude', selected, skills), ['/mh-wf-manual']);
+  assert.deepEqual(getSkillInvocations('opencode', selected, skills), ['@mh-off', '@mh-wf-manual']);
+});
 
 test('YAML, tiefe Kategorien und zyklische Abhängigkeiten ohne Selbstreferenz', (t) => {
   const repo = tempDir(t);

@@ -92,7 +92,8 @@ summary { cursor: pointer; font-weight: 650; overflow-wrap: anywhere; }
 .markdown table { display: block; overflow: auto; border-collapse: collapse; }
 .markdown :is(th, td) { border: 1px solid var(--border); padding: .3rem .6rem; }
 .markdown blockquote { margin-inline: 0; padding-inline-start: .75rem; border-inline-start: 3px solid var(--border); color: var(--muted); }
-.markdown :not(pre) > code, #target { background: var(--inset); border-radius: .25rem; padding: .1rem .25rem; }
+.markdown :not(pre) > code, #target, #preview-invocation-command { background: var(--inset); border-radius: .25rem; padding: .1rem .25rem; }
+#preview-invocation-command { overflow-wrap: anywhere; }
 pre, textarea { background: var(--inset); border: 1px solid var(--border); border-radius: .45rem; }
 pre { overflow: auto; padding: .75rem; font-size: .85rem; }
 #content > pre { margin: 0; }
