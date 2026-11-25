@@ -45,10 +45,15 @@
         <p>Euer Team pflegt Skills zentral, installiert aber nur, was zum Projekt passt. Ein Java-Workflow bringt seine Java-Skills mit, keine Python-Skills. Checkt die Projektanweisungen und die installierten Skills ein, damit alle mit demselben Stand arbeiten und Änderungen bewusst übernehmen.</p>
       </div>
     </details>
+    <div class="controls target-controls">
+      <label for="tool">Ziel-Tool</label>
+      <select id="tool"><option value="claude">Claude Code</option><option value="opencode">OpenCode</option><option value="codex">Codex</option></select>
+      <code id="target"></code>
+    </div>
     <div class="workspace">
       <nav class="panel library" aria-label="Skill-Katalog">
         <h2>Katalog</h2>
-        <p class="muted">Klicke auf den Namen für die Vorschau oder auf das Feld daneben für die Installation.</p>
+        <p class="muted">Klicke auf den Namen für die Vorschau. Setze Häkchen, um Einträge für den Terminalbefehl zu sammeln.</p>
         <div id="tree"></div>
         <details class="group" id="project-templates" open hidden>
           <summary>Projektvorlagen</summary>
@@ -91,16 +96,14 @@
     </div>
     <section class="panel install" aria-labelledby="install-title">
       <div class="title-row install-heading">
-        <h2 id="install-title">Im Projekt installieren</h2>
+        <h2 id="install-title">Per Terminal installieren</h2>
         <button id="clear" class="quiet icon-action" type="button" title="Auswahl zurücksetzen" aria-label="Auswahl zurücksetzen" disabled>
           <svg class="action-icon" aria-hidden="true"><use href="#icon-reset"></use></svg>
         </button>
       </div>
+      <p class="muted">Nutze den Terminalbefehl für mehrere Katalogeinträge auf einmal oder für eine <code>AGENTS.md</code>-Projektvorlage. Einzelne Skills und Workflows kannst du oben per ZIP oder Agenten-Prompt installieren. Ein Workflow bringt seine Abhängigkeiten bereits mit.</p>
       <p class="muted">Der Hub ersetzt nur seine eigenen, ausgewählten Skill-Ordner.</p>
       <div class="controls">
-        <label for="tool">Ziel-Tool</label>
-        <select id="tool"><option value="claude">Claude Code</option><option value="opencode">OpenCode</option><option value="codex">Codex</option></select>
-        <code id="target"></code>
         <label for="terminal">Terminal</label>
         <select id="terminal"><option value="bash">Bash (Linux, macOS, WSL)</option><option value="powershell">PowerShell (Windows)</option></select>
         <span id="selection" class="muted" role="status"></span>

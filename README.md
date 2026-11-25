@@ -36,11 +36,11 @@ Der Installer legt `AGENTS.md` für alle Ziel-Tools im Projektstamm an. Eine sch
 
 ## Installieren und aktualisieren
 
-Wähle zuerst das Ziel-Tool und öffne den gewünschten Skill oder Workflow in der Vorschau. Das **ZIP-Icon** lädt das passende Projektpaket inklusive aller direkten und indirekten Abhängigkeiten. Prüfe den Inhalt und entpacke das Paket im **Projektstamm**. Die Zielpfade liegen bereits im ZIP: `.opencode/skills/` und `.agents/skills/` mit den Katalogkategorien, `.claude/skills/` mit den einzelnen Skill-Ordnern direkt darunter.
+Wähle das Ziel-Tool oberhalb des Katalogs und öffne den gewünschten Skill oder Workflow in der Vorschau. Das **ZIP-Icon** lädt das passende Projektpaket inklusive aller direkten und indirekten Abhängigkeiten. Prüfe den Inhalt und entpacke das Paket im **Projektstamm**. Die Zielpfade liegen bereits im ZIP: `.opencode/skills/` und `.agents/skills/` mit den Katalogkategorien, `.claude/skills/` mit den einzelnen Skill-Ordnern direkt darunter.
 
 Mit **Agenten-Prompt kopieren** erhältst du stattdessen den Installationsauftrag mit Direktlink und SHA-256-Prüfsumme. Füge ihn beim Coding-Agenten im Zielprojekt ein. Beide Aktionen beziehen sich nur auf den geöffneten Eintrag, nicht auf die Häkchen im Katalog, und ändern keine `AGENTS.md`. Prüfe beim Wechsel zwischen ZIP und Terminalbefehl, ob derselbe Skill bereits an einem anderen Pfad installiert ist.
 
-Wähle im Hub Workflow oder Skills, Ziel-Tool und Terminal (Bash oder PowerShell). Prüfe den erzeugten Befehl und führe ihn im Stamm des Zielprojekts aus. Für ein Update wählst du die Einträge erneut aus. Der Installer prüft die Downloads und ersetzt nur ausgewählte, vom Hub verwaltete Skill-Ordner. **Lokale Änderungen in diesen Ordnern gehen beim Update verloren**; prüft Updates deshalb am besten per Git-Diff im Pull Request.
+Für mehrere Katalogeinträge oder eine `AGENTS.md`-Vorlage nutze **Per Terminal installieren**. Setze die Auswahl im Katalog und wähle Bash oder PowerShell. Prüfe den erzeugten Befehl und führe ihn im Stamm des Zielprojekts aus. Für ein Update wählst du die Einträge erneut aus. Der Installer prüft die Downloads und ersetzt nur ausgewählte, vom Hub verwaltete Skill-Ordner. **Lokale Änderungen in diesen Ordnern gehen beim Update verloren**; prüft Updates deshalb am besten per Git-Diff im Pull Request.
 
 ## Hub starten
 
