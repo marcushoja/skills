@@ -16,5 +16,3 @@ Schreibe eine kurze Markdown-Übergabe für einen Agenten, der dieses Gespräch 
 - **Empfohlene Skills:** Nenne nur tatsächlich verfügbare, passende Skill-IDs und wofür sie nützlich sind.
 
 Entferne Zugangsdaten, API-Schlüssel und personenbezogene Informationen. Speichere die Datei in einem eindeutigen Pfad im temporären Verzeichnis, nicht im Projekt: in OpenCode bevorzugt im dafür vorgesehenen Temp-Verzeichnis, sonst unter `$TMPDIR` (Fallback `/tmp`) beziehungsweise unter `%TEMP%` unter Windows. Gib den Pfad aus, damit der Nutzer die Datei in der nächsten Session öffnen kann.
-
-Quelle: [Matt Pocock – handoff](https://github.com/mattpocock/skills/blob/d65391149dbb5fe76478e76fa8d5122b2aa5a70e/skills/productivity/handoff/SKILL.md) · [MIT-Lizenz](LICENSE)

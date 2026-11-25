@@ -26,5 +26,3 @@ Gute Tests lesen sich wie eine Spezifikation: „Ein gültiger Warenkorb kann be
 1. **Rot:** Schreibe einen Test an einer vereinbarten Teststelle und führe ihn aus. Er muss wegen des fehlenden oder falschen Verhaltens scheitern, nicht wegen eines fehlerhaften Testaufbaus.
 2. **Grün:** Ändere nur so viel Code, dass dieser Test besteht. Führe ihn erneut aus und prüfe betroffene bestehende Tests.
 3. Wiederhole den Zyklus mit genau einem weiteren Verhaltensschritt. Halte strukturelles Refactoring aus dem Rot–Grün-Zyklus heraus; wenn es nötig ist, erledige es separat mit grünen Tests als Rückversicherung.
-
-Quelle: [Matt Pocock – tdd](https://github.com/mattpocock/skills/tree/d65391149dbb5fe76478e76fa8d5122b2aa5a70e/skills/engineering/tdd) · [MIT-Lizenz](LICENSE)

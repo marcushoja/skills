@@ -22,5 +22,3 @@ Hinterfrage den Plan gründlich, bis ihr dasselbe Verständnis habt. Denke in ei
 **Recherchiere Fakten selbst.** Lies vorhandene Dateien und Dokumentation oder nutze verfügbare Werkzeuge, statt nach nachprüfbaren Informationen zu fragen. Wenn eine Information nicht zugänglich ist, benenne die Lücke und mache mit unabhängigen Fragen weiter. **Entscheidungen trifft der Nutzer** – behandle deine Empfehlung nicht als Zustimmung.
 
 Wenn keine relevanten Entscheidungen mehr offen sind, fasse das Ergebnis und die bestätigten Annahmen knapp zusammen. Bitte um Bestätigung, dass ihr dasselbe Verständnis habt. Setze den Plan allein aufgrund dieses Interviews nicht um.
-
-Quelle: [Matt Pocock – grilling](https://github.com/mattpocock/skills/blob/d65391149dbb5fe76478e76fa8d5122b2aa5a70e/skills/productivity/grilling/SKILL.md) · [MIT-Lizenz](LICENSE)

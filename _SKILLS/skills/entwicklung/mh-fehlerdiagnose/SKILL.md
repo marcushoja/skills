@@ -51,5 +51,3 @@ Falls die Teststelle geeignet ist: Lass den minimierten Fall im Regressionstest 
 - Temporäre Logs und Diagnoseänderungen sind entfernt. Suche nach dem Debug-Präfix.
 - Eigene Wegwerfprototypen sind entfernt oder eindeutig als Diagnosematerial abgelegt.
 - Halte die bestätigte Ursache und den Nachweis in der Zusammenfassung fest, beziehungsweise in Commit oder Pull Request, falls diese Teil des Auftrags sind.
-
-Quelle: [Matt Pocock – diagnosing-bugs](https://github.com/mattpocock/skills/tree/d65391149dbb5fe76478e76fa8d5122b2aa5a70e/skills/engineering/diagnosing-bugs) · [MIT-Lizenz](LICENSE)

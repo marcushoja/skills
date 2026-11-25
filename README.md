@@ -12,7 +12,7 @@ Ein statischer Katalog für AI-Agent-Skills mit Markdown-Vorschau und einem kopi
 | Skills · Entwicklung | [`mh-tdd`](_SKILLS/skills/entwicklung/mh-tdd/SKILL.md) | Verhalten in kleinen Rot–Grün-Schritten entwickeln. |
 | Skills · Entwicklung | [`mh-fehlerdiagnose`](_SKILLS/skills/entwicklung/mh-fehlerdiagnose/SKILL.md) | Einen Fehler nachweisen, eingrenzen und gegen Rückfälle absichern. |
 
-Die deutschen Fassungen basieren auf [Matt Pococks Skills](https://github.com/mattpocock/skills). Die Originalquelle und die MIT-Lizenz liegen bei jedem Eintrag.
+Die deutschen Fassungen basieren auf [Matt Pococks Skills](https://github.com/mattpocock/skills/tree/d65391149dbb5fe76478e76fa8d5122b2aa5a70e). Die MIT-Lizenz wird bei jedem Eintrag mitinstalliert.
 
 ## Start mit Docker
 
@@ -52,6 +52,8 @@ npm test
 npm run build
 ```
 
-Für die PowerShell-Integrationstests muss `pwsh` im Pfad liegen. Mit `SKILLS_HUB_POWERSHELL` lässt sich ein anderes Programm angeben (unter Windows z. B. `powershell.exe` für 5.1). In CI laufen die PowerShell-Tests für beide Versionen auf Windows.
+Für die PowerShell-Integrationstests muss `pwsh` im Pfad liegen. Mit `SKILLS_HUB_POWERSHELL` lässt sich ein anderes Programm angeben (unter Windows z. B. `powershell.exe` für 5.1).
+
+Coolify baut das Projekt über das `Dockerfile`. GitHub Actions führt keinen Build aus.
 
 Der Build legt die generierte Website in `dist/` ab. Die Projekt-Spezifikation steht in [`skills_hub_spezifikation.md`](skills_hub_spezifikation.md); bei der Installation gilt das oben beschriebene sichere Ersetzen statt eines globalen „Clean Sync“.

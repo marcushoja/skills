@@ -149,6 +149,8 @@ function showSkill(id) {
   files.replaceChildren();
   fileButtons.clear();
   for (const file of skill.files) {
+    // License notices ship with the skill but don't need a preview tab.
+    if (file === 'LICENSE') continue;
     const tab = button(file, 'file');
     tab.addEventListener('click', () => showFile(skill, file));
     fileButtons.set(file, tab);
