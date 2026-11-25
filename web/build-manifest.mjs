@@ -9,6 +9,8 @@ import { normalizeBaseUrl, splitFrontmatter, targets } from './hub-core.js';
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
 const catalogDirectory = '_SKILLS';
+// These tools share the standard project layout, with each skill directly under .agents/skills.
+const sharedProjectTools = new Set(['antigravity', 'cursor', 'copilot']);
 const visibleEntries = (dir) => fs.readdirSync(dir, { withFileTypes: true })
   .filter(({ name }) => !name.startsWith('.') && !name.endsWith(':Zone.Identifier'));
 
@@ -55,16 +57,20 @@ function parseSkill(raw, file, id) {
     if (token.type === 'codespan' && token.text !== id) refs.add(token.text);
   });
   const disableModel = document.get('disable-model-invocation');
+  const userInvocable = document.get('user-invocable');
   const openCodeAuto = document.getIn(['metadata', 'opencode/autoinvoke']);
   const invocation = {
     claude: {
       automatic: !claudeBoolean(disableModel, false),
-      manual: claudeBoolean(document.get('user-invocable'), true),
+      manual: claudeBoolean(userInvocable, true),
     },
     opencode: {
       automatic: typeof openCodeAuto === 'boolean' ? openCodeAuto : disableModel !== true,
       manual: true,
     },
+    antigravity: { automatic: disableModel !== true, manual: true },
+    cursor: { automatic: disableModel !== true, manual: userInvocable !== false },
+    copilot: { automatic: disableModel !== true, manual: userInvocable !== false },
   };
   return { description: description.trim(), invocation, refs };
 }
@@ -231,21 +237,27 @@ export function buildSite(root, downloadBaseUrl = '') {
     }
   }
   for (const skill of Object.values(manifest.skills)) {
+    const packagesByLayout = new Map();
     skill.packages = Object.fromEntries(Object.entries(targets).map(([tool, target]) => {
+      const shared = sharedProjectTools.has(tool);
+      const layout = shared ? 'agents' : tool;
+      if (packagesByLayout.has(layout)) return [tool, packagesByLayout.get(layout)];
       const files = Object.create(null);
       const catalogPath = (entry) => entry.repoPath.slice(entry.repoPath.indexOf('/') + 1);
-      // Claude Code documents skill directories as direct children of .claude/skills.
-      const projectPath = (entry) => `${target}/${tool === 'claude' ? entry.id : catalogPath(entry)}`;
+      const flat = shared || tool === 'claude';
+      const projectPath = (entry) => `${target}/${flat ? entry.id : catalogPath(entry)}`;
       for (const entry of [skill, ...skill.allDeps.map((id) => manifest.skills[id])]) {
         for (const file of entry.files) files[`${projectPath(entry)}/${file}`] = zipFile(out, entry, file);
       }
-      const archive = `downloads/${tool}/${catalogPath(skill)}.zip`;
+      const archive = `downloads/${layout}/${catalogPath(skill)}.zip`;
       const destination = path.join(out, archive);
       // The ZIP hash in the agent prompt should not change just because the site was rebuilt.
       const bytes = zipSync(files, { mtime: new Date(2000, 0, 1) });
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.writeFileSync(destination, bytes);
-      return [tool, { archive, projectPath: projectPath(skill), sha256: createHash('sha256').update(bytes).digest('hex') }];
+      const artifact = { archive, projectPath: projectPath(skill), sha256: createHash('sha256').update(bytes).digest('hex') };
+      packagesByLayout.set(layout, artifact);
+      return [tool, artifact];
     }));
   }
   fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');

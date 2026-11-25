@@ -6,7 +6,7 @@ Eine leichtgewichtige, rein statische Webanwendung ohne Backend, ohne Datenbank 
 Die Anwendung:
 1. Liest beim Build `_SKILLS/workflows/`, `_SKILLS/skills/` und `_SKILLS/project-templates/` ein, validiert Struktur und Metadaten und erzeugt eine statische `manifest.json`.
 2. Stellt im Browser eine zweigeteilte Oberfläche bereit: links eine aufklappbare Kategorie-Baumstruktur mit Checkboxen, rechts die Vorschau der gewählten `SKILL.md` (inkl. Abhängigkeiten und lesbarer Zusatzdateien).
-3. Generiert einen kopierbaren Block für Bash oder PowerShell, der alle ausgewählten Skills inkl. ihrer Abhängigkeiten **flach** in das Zielprojekt des Nutzers (für **Claude Code**, **OpenCode** oder **Codex**) kopiert.
+3. Generiert einen kopierbaren Block für Bash oder PowerShell, der alle ausgewählten Skills inkl. ihrer Abhängigkeiten **flach** in das Zielprojekt kopiert. Ziel-Tools: **Claude Code**, **OpenCode**, **Codex**, **Google Antigravity**, **Cursor** und **GitHub Copilot**.
 4. Installiert auf Wunsch eine Projektvorlage als `AGENTS.md` im Projektstamm, ohne vorhandene Projektanweisungen zu überschreiben.
 5. Der Build kopiert die katalogisierten Dateien nach `dist/workflows/`, `dist/skills/` und `dist/project-templates/`. Nginx liefert sie unter `/workflows/`, `/skills/` und `/project-templates/` aus; `_SKILLS/` ist nur der Quellordner. Standardmäßig lädt der Installationsbefehl die Dateien direkt vom eigenen Server (`window.location.origin`), sodass das Git-Repository privat bleiben kann.
 
@@ -302,7 +302,7 @@ console.log(`Manifest erfolgreich gebaut: ${skillsMap.size} Skills/Workflows.`);
    * **Ziel-Tool-Auswahl (Radio/Select):**
      * **Claude Code** -> `.claude/skills`
      * **OpenCode** -> `.opencode/skills`
-     * **Codex** -> `.agents/skills`
+     * **Codex**, **Google Antigravity**, **Cursor**, **GitHub Copilot** -> `.agents/skills`
    * **Terminal-Auswahl:** Bash (Standard; Linux, macOS, WSL) oder PowerShell (Windows; 5.1 und 7). Terminal und Ziel-Tool werden unabhängig in `localStorage` gespeichert. Die Skill-Auswahl ändert sich beim Umschalten nicht.
    * **Readonly-Textarea + Copy-Button:** Zeigt das generierte Shell-Kommando live an und bietet Ein-Klick-Kopieren in die Zwischenablage.
 

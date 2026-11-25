@@ -4,12 +4,18 @@ export const targets = Object.freeze({
   claude: '.claude/skills',
   opencode: '.opencode/skills',
   codex: '.agents/skills',
+  antigravity: '.agents/skills',
+  cursor: '.agents/skills',
+  copilot: '.agents/skills',
 });
 
 export const toolNames = Object.freeze({
   claude: 'Claude Code',
   opencode: 'OpenCode',
   codex: 'Codex',
+  antigravity: 'Google Antigravity',
+  cursor: 'Cursor',
+  copilot: 'GitHub Copilot',
 });
 
 export function getAgentPackage(skill, tool, pageUrl) {
@@ -40,7 +46,7 @@ export const terminals = Object.freeze({
 });
 
 export function getSkillInvocation(tool, id) {
-  const prefix = { claude: '/', opencode: '@', codex: '$' }[tool];
+  const prefix = { opencode: '@', codex: '$' }[tool] ?? '/';
   return `${prefix}${id}`;
 }
 

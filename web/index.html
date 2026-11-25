@@ -47,7 +47,14 @@
     </details>
     <div class="controls target-controls">
       <label for="tool">Ziel-Tool</label>
-      <select id="tool"><option value="claude">Claude Code</option><option value="opencode">OpenCode</option><option value="codex">Codex</option></select>
+      <select id="tool">
+        <option value="claude">Claude Code</option>
+        <option value="opencode">OpenCode</option>
+        <option value="codex">Codex</option>
+        <option value="antigravity">Google Antigravity</option>
+        <option value="cursor">Cursor</option>
+        <option value="copilot">GitHub Copilot</option>
+      </select>
       <code id="target"></code>
     </div>
     <div class="workspace">
@@ -130,6 +137,15 @@
         <div data-tool-help="codex" hidden>
           <p>Erwähne den Skill mit <code>$skill-name</code> im Prompt. <code>/skills</code> oder die Eingabe von <code>$</code> öffnet die Skill-Auswahl.</p>
           <p class="muted">Codex erkennt neue und geänderte Skills automatisch. Fehlt ein Skill, starte Codex neu.</p>
+        </div>
+        <div data-tool-help="antigravity" hidden>
+          <p>Rufe den Skill in der Antigravity App oder CLI mit <code>/skill-name</code> auf. In der CLI lädt <code>/skills reload</code> neu installierte Skills.</p>
+        </div>
+        <div data-tool-help="cursor" hidden>
+          <p>Gib <code>/skill-name</code> im Agent-Chat ein, um den Skill aufzurufen.</p>
+        </div>
+        <div data-tool-help="copilot" hidden>
+          <p>Wähle den Skill in VS Code mit <code>/skill-name</code> aus oder erwähne ihn so im Prompt der Copilot CLI. In einer laufenden CLI-Sitzung lädt <code>/skills reload</code> neu installierte Skills.</p>
         </div>
         <ul id="skill-invocations" aria-label="Aufrufe für direkt ausgewählte Skills" hidden></ul>
         <p id="invocation-status" class="muted" role="status"></p>

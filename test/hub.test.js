@@ -19,6 +19,9 @@ test('Skill-Aufrufe verwenden die echten IDs und das Präfix des Ziel-Tools', ()
   assert.deepEqual(getSkillInvocations('claude', manual), ['/mh-tdd', '/mh-wf-plan-hinterfragen']);
   assert.deepEqual(getSkillInvocations('opencode', manual), ['@mh-tdd', '@mh-wf-plan-hinterfragen']);
   assert.deepEqual(getSkillInvocations('codex', manual), ['$mh-tdd', '$mh-wf-plan-hinterfragen']);
+  for (const tool of ['antigravity', 'cursor', 'copilot']) {
+    assert.deepEqual(getSkillInvocations(tool, manual), ['/mh-tdd', '/mh-wf-plan-hinterfragen']);
+  }
   assert.deepEqual(getSkillInvocations('opencode', new Set()), []);
 });
 
@@ -32,6 +35,9 @@ test('ADHS-Modus ist ein eigenständiger Skill mit MIT-Lizenz und MH-Aufruf', ()
     claude: { automatic: false, manual: true },
     opencode: { automatic: false, manual: true },
     codex: { automatic: true, manual: true },
+    antigravity: { automatic: false, manual: true },
+    cursor: { automatic: false, manual: true },
+    copilot: { automatic: false, manual: true },
   });
   assert.deepEqual(getSelection(skills, new Set([id])).ids, [id]);
   assert.deepEqual(getSkillInvocations('opencode', new Set([id])), [`@${id}`]);
@@ -92,6 +98,9 @@ user-invocable: off
 disable-model-invocation: true
 metadata:
   opencode/autoinvoke: true`);
+  addSkill(repo, 'skills', 'mh-background', '', `name: mh-background
+description: Beispiel
+user-invocable: false`);
   addSkill(repo, 'workflows', 'mh-wf-manual', '', `name: mh-wf-manual
 description: Beispiel
 metadata:
@@ -100,14 +109,24 @@ metadata:
   const { skills } = createManifest(repo);
   const both = { automatic: true, manual: true };
   const manual = { automatic: false, manual: true };
-  assert.deepEqual(skills['mh-default'].invocation, { claude: both, opencode: both, codex: both });
+  assert.deepEqual(skills['mh-default'].invocation, {
+    claude: both, opencode: both, codex: both, antigravity: both, cursor: both, copilot: both,
+  });
   assert.deepEqual(skills['mh-off'].invocation, {
     claude: { automatic: false, manual: false }, opencode: both, codex: both,
+    antigravity: manual, cursor: manual, copilot: manual,
   });
-  assert.deepEqual(skills['mh-wf-manual'].invocation, { claude: both, opencode: manual, codex: manual });
+  assert.deepEqual(skills['mh-wf-manual'].invocation, {
+    claude: both, opencode: manual, codex: manual, antigravity: both, cursor: both, copilot: both,
+  });
   const selected = new Set(['mh-off', 'mh-wf-manual']);
   assert.deepEqual(getSkillInvocations('claude', selected, skills), ['/mh-wf-manual']);
   assert.deepEqual(getSkillInvocations('opencode', selected, skills), ['@mh-off', '@mh-wf-manual']);
+  for (const tool of ['cursor', 'copilot']) {
+    assert.deepEqual(skills['mh-background'].invocation[tool], { automatic: true, manual: false });
+    assert.deepEqual(getSkillInvocations(tool, new Set(['mh-background', 'mh-off']), skills), ['/mh-off']);
+  }
+  assert.deepEqual(getSkillInvocations('antigravity', new Set(['mh-background', 'mh-off']), skills), ['/mh-background', '/mh-off']);
 });
 
 test('YAML, tiefe Kategorien und zyklische Abhängigkeiten ohne Selbstreferenz', (t) => {
@@ -216,13 +235,20 @@ test('Projektpakete bewahren Zielpfade und enthalten verschachtelte Abhängigkei
   const { skills } = buildSite(repo, 'https://separate-downloads.example/');
   const skill = skills[id];
   const pageUrl = 'https://hub.example/team/index.html';
-  const expected = { claude: 'Claude Code', opencode: 'OpenCode', codex: 'Codex' };
-  for (const [tool, name] of Object.entries(expected)) {
+  const expected = {
+    claude: ['Claude Code', '.claude/skills', 'claude', true],
+    opencode: ['OpenCode', '.opencode/skills', 'opencode', false],
+    codex: ['Codex', '.agents/skills', 'codex', false],
+    antigravity: ['Google Antigravity', '.agents/skills', 'agents', true],
+    cursor: ['Cursor', '.agents/skills', 'agents', true],
+    copilot: ['GitHub Copilot', '.agents/skills', 'agents', true],
+  };
+  for (const [tool, [name, prefix, layout, flat]] of Object.entries(expected)) {
     const { archive, projectPath, sha256 } = skill.packages[tool];
-    const prefix = targets[tool];
+    assert.equal(targets[tool], prefix);
     const file = (folder, relative = 'SKILL.md') =>
-      `${prefix}/${tool === 'claude' ? folder.split('/').at(-1) : folder}/${relative}`;
-    assert.equal(archive, `downloads/${tool}/${category}/${id}.zip`);
+      `${prefix}/${flat ? folder.split('/').at(-1) : folder}/${relative}`;
+    assert.equal(archive, `downloads/${layout}/${category}/${id}.zip`);
     assert.equal(`${projectPath}/SKILL.md`, file(`${category}/${id}`));
     const bytes = fs.readFileSync(path.join(repo, 'dist', archive));
     const entries = unzipSync(bytes);
@@ -233,7 +259,7 @@ test('Projektpakete bewahren Zielpfade und enthalten verschachtelte Abhängigkei
     assert.equal(Buffer.from(entries[file('Qualität/mh-tests', 'references/Tests.md')]).toString(), 'Begleitdatei');
     assert.equal(sha256, createHash('sha256').update(bytes).digest('hex'));
     const { url, prompt } = getAgentPackage(skill, tool, pageUrl);
-    assert.equal(url, `https://hub.example/team/downloads/${tool}/Java/Spring%20Boot/${id}.zip`);
+    assert.equal(url, `https://hub.example/team/downloads/${layout}/Java/Spring%20Boot/${id}.zip`);
     assert.ok(prompt.includes(`für ${name} im aktuellen Projekt`));
     assert.ok(prompt.includes('mh-java, mh-tests'));
     assert.ok(prompt.includes(`ZIP: ${url}\nSHA-256: ${sha256}`));

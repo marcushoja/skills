@@ -18,7 +18,7 @@ Skills zentral im Team pflegen, aber nur dort installieren, wo sie gebraucht wer
 
 **Namensregeln:** Ordnernamen müssen im ganzen Katalog eindeutig sein und dürfen nur Kleinbuchstaben, Ziffern und Bindestriche enthalten. Workflows beginnen mit `mh-wf-`, Skills mit `mh-`. Jede `SKILL.md` braucht YAML-Frontmatter mit `name` (identisch zum Ordnernamen) und `description` (nicht leer). Für manuell aufgerufene Workflows empfiehlt sich `disable-model-invocation: true`.
 
-**Aufruf:** Die Vorschau zeigt für das gewählte Ziel-Tool, ob der Assistent den Skill bei passender Aufgabe selbst auswählen kann, und nennt den manuellen Aufruf, sofern verfügbar. Für Claude Code und OpenCode schaltet `disable-model-invocation: true` die automatische Auswahl ab. In OpenCode V2 hat `metadata.opencode/autoinvoke` Vorrang. Für Codex setze `policy.allow_implicit_invocation: false` in `agents/openai.yaml`.
+**Aufruf:** Die Vorschau zeigt für das gewählte Ziel-Tool, ob der Assistent den Skill bei passender Aufgabe selbst auswählen kann, und nennt den manuellen Aufruf, sofern verfügbar. Für Claude Code, OpenCode, Google Antigravity, Cursor und GitHub Copilot (VS Code und CLI) schaltet `disable-model-invocation: true` die automatische Auswahl ab. In OpenCode V2 hat `metadata.opencode/autoinvoke` Vorrang. Für Codex setze `policy.allow_implicit_invocation: false` in `agents/openai.yaml`.
 
 ## Projektvorlagen für `AGENTS.md`
 
@@ -36,7 +36,7 @@ Der Installer legt `AGENTS.md` für alle Ziel-Tools im Projektstamm an. Eine sch
 
 ## Installieren und aktualisieren
 
-Wähle das Ziel-Tool oberhalb des Katalogs und öffne den gewünschten Skill oder Workflow in der Vorschau. Das **ZIP-Icon** lädt das passende Projektpaket inklusive aller direkten und indirekten Abhängigkeiten. Prüfe den Inhalt und entpacke das Paket im **Projektstamm**. Die Zielpfade liegen bereits im ZIP: `.opencode/skills/` und `.agents/skills/` mit den Katalogkategorien, `.claude/skills/` mit den einzelnen Skill-Ordnern direkt darunter.
+Wähle das Ziel-Tool oberhalb des Katalogs und öffne den gewünschten Skill oder Workflow in der Vorschau. Das **ZIP-Icon** lädt das passende Projektpaket inklusive aller direkten und indirekten Abhängigkeiten. Prüfe den Inhalt und entpacke das Paket im **Projektstamm**. OpenCode und Codex behalten im ZIP die Katalogkategorien unter `.opencode/skills/` bzw. `.agents/skills/`. Claude Code verwendet `.claude/skills/<skill-name>/`. Google Antigravity, Cursor und GitHub Copilot teilen sich dasselbe ZIP mit `.agents/skills/<skill-name>/` – einmal entpacken reicht für alle drei.
 
 Mit **Agenten-Prompt kopieren** erhältst du stattdessen den Installationsauftrag mit Direktlink und SHA-256-Prüfsumme. Füge ihn beim Coding-Agenten im Zielprojekt ein. Beide Aktionen beziehen sich nur auf den geöffneten Eintrag, nicht auf die Häkchen im Katalog, und ändern keine `AGENTS.md`. Prüfe beim Wechsel zwischen ZIP und Terminalbefehl, ob derselbe Skill bereits an einem anderen Pfad installiert ist.
 
