@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { zipSync } from 'fflate';
 import { marked } from 'marked';
 import { parseDocument } from 'yaml';
 import { normalizeBaseUrl, splitFrontmatter } from './hub-core.js';
@@ -166,7 +167,8 @@ export function createManifest(root, downloadBaseUrl = '') {
         }];
       }));
       invocation.codex = { automatic: codexAuto !== false, manual: true };
-      skills[id] = { id, type, repoPath, description, invocation, files, fileInfo, directDeps: [], allDeps: [] };
+      const archive = `downloads/${id}.zip`;
+      skills[id] = { id, type, repoPath, description, invocation, archive, files, fileInfo, directDeps: [], allDeps: [] };
       skillRefs.set(id, refs);
       return [{ kind: 'skill', id }];
     });
@@ -212,11 +214,21 @@ export function buildSite(root, downloadBaseUrl = '') {
     fs.copyFileSync(path.join(modules, source), path.join(out, 'vendor', dest));
   }
   for (const entry of [...Object.values(manifest.skills), ...manifest.projectTemplates]) {
+    const archiveFiles = entry.archive ? {} : null;
     for (const file of entry.files) {
       const relative = `${entry.repoPath}/${file}`;
       const destination = path.join(out, relative);
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.copyFileSync(path.join(root, catalogDirectory, relative), destination);
+      if (archiveFiles) {
+        const mode = entry.fileInfo[file].executable ? 0o100755 : 0o100644;
+        archiveFiles[`${entry.id}/${file}`] = [fs.readFileSync(destination), { os: 3, attrs: mode << 16 }];
+      }
+    }
+    if (archiveFiles) {
+      const destination = path.join(out, entry.archive);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.writeFileSync(destination, zipSync(archiveFiles));
     }
   }
   fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');

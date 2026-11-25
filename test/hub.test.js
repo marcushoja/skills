@@ -7,6 +7,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { unzipSync } from 'fflate';
 import { buildSite, createManifest } from '../web/build-manifest.mjs';
 import { fileUrl, generateInstallCommand, getSelection, getSkillInvocations, normalizeBaseUrl, targets } from '../web/hub-core.js';
 
@@ -173,6 +174,33 @@ test('Build liefert exakt die katalogisierten Skill-Dateien aus, auch nach erneu
   buildSite(repo);
   assert.equal(fs.existsSync(path.join(repo, 'dist', reference)), false);
   assert.throws(() => normalizeBaseUrl('https://user:pass@example.org'), /DOWNLOAD_BASE_URL/);
+});
+
+test('ZIP enthält genau den gewählten Skill-Ordner mit Begleitdateien, ohne Abhängigkeiten', (t) => {
+  const repo = tempDir(t);
+  addSkill(repo, 'skills', 'mh-beispiel');
+  const workflow = 'mh-wf-beispiel';
+  const source = `_SKILLS/workflows/${workflow}`;
+  addSkill(repo, 'workflows', workflow, 'Lade `mh-beispiel`.');
+  write(repo, `${source}/LICENSE`, 'MIT');
+  write(repo, `${source}/references/Übung #1.md`, 'Begleitdatei');
+  const script = write(repo, `${source}/scripts/start.sh`, '#!/bin/sh\n');
+  fs.chmodSync(script, 0o755);
+  write(repo, `${source}/.intern`, 'nicht ausliefern');
+  write(repo, '_SKILLS/project-templates/beispiel/AGENTS.md', '# Vorlage');
+  const { skills } = buildSite(repo, 'https://downloads.example/');
+  assert.deepEqual(skills[workflow].directDeps, ['mh-beispiel']);
+  assert.equal(skills[workflow].archive, `downloads/${workflow}.zip`);
+  const archive = fs.readFileSync(path.join(repo, 'dist', skills[workflow].archive));
+  const entries = unzipSync(archive);
+  assert.deepEqual(Object.keys(entries), skills[workflow].files.map((file) => `${workflow}/${file}`));
+  for (const file of skills[workflow].files) {
+    assert.deepEqual(Buffer.from(entries[`${workflow}/${file}`]), fs.readFileSync(path.join(repo, source, file)));
+  }
+  assert.deepEqual(fs.readdirSync(path.join(repo, 'dist/downloads')).sort(), ['mh-beispiel.zip', `${workflow}.zip`].sort());
+  fs.unlinkSync(script);
+  buildSite(repo);
+  assert.equal(Object.hasOwn(unzipSync(fs.readFileSync(path.join(repo, 'dist', skills[workflow].archive))), `${workflow}/scripts/start.sh`), false);
 });
 
 const parentTemplatePath = 'project-templates/entwicklung/java/AGENTS.md';

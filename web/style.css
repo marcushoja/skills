@@ -67,8 +67,10 @@ summary { cursor: pointer; font-weight: 650; overflow-wrap: anywhere; }
 #content:focus-visible { outline-offset: -3px; }
 .title-row, .controls, .chips { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem .8rem; }
 .title-row h2 { overflow-wrap: anywhere; }
+.skill-download { margin-inline-start: auto; color: var(--text); font-size: .85rem; text-decoration: none; }
 .badge, .chip { font-size: .8rem; color: var(--accent); background: var(--accent-surface); border: 1px solid var(--border); border-radius: 2rem; padding: .15rem .55rem; }
 .dependencies { margin: 0 1.15rem .95rem; padding: .55rem .8rem; border: 1px solid var(--border); border-radius: .45rem; background: var(--inset); }
+.dependencies > p { margin-top: .4rem; }
 .chip { margin-top: .3rem; max-width: 100%; overflow-wrap: anywhere; }
 .chip:hover { border-color: var(--accent); }
 .files { display: flex; flex-wrap: wrap; gap: .25rem; border-block: 1px solid var(--border); padding: .4rem 1.15rem; background: var(--inset); }

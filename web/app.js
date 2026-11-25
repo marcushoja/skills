@@ -163,6 +163,7 @@ function showProjectTemplate(template, name) {
   setActivePreview(name);
   previewSkill = undefined;
   updatePreviewInvocation();
+  $('skill-download').hidden = true;
   $('preview-title').textContent = template.title;
   $('skill-type').textContent = 'Projektvorlage';
   $('skill-type').hidden = false;
@@ -182,6 +183,11 @@ function showSkill(id) {
   $('skill-type').textContent = skill.type === 'workflow' ? 'Workflow' : 'Skill';
   $('skill-type').hidden = false;
   $('description').textContent = skill.description;
+  const download = $('skill-download');
+  download.href = `./${skill.archive}`;
+  download.download = `${id}.zip`;
+  download.setAttribute('aria-label', `ZIP herunterladen: ${id}`);
+  download.hidden = false;
 
   const deps = $('dependencies');
   deps.replaceChildren();
@@ -195,6 +201,7 @@ function showSkill(id) {
       chips.append(chip);
     }
     deps.append(chips);
+    deps.append(element('p', 'Das ZIP enthält keine abhängigen Skills.', 'muted'));
   }
 
   const files = $('files');

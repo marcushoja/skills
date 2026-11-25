@@ -36,6 +36,8 @@ Der Installer legt `AGENTS.md` für alle Ziel-Tools im Projektstamm an. Eine sch
 
 ## Installieren und aktualisieren
 
+Für die manuelle Installation klicke in der Vorschau auf **ZIP herunterladen**. Das Archiv enthält den Ordner des geöffneten Skills oder Workflows samt Begleitdateien, aber keine abhängigen Skills. Entpacke den Ordner in das Skills-Verzeichnis deines Ziel-Tools.
+
 Wähle im Hub Workflow oder Skills, Ziel-Tool und Terminal (Bash oder PowerShell). Prüfe den erzeugten Befehl und führe ihn im Stamm des Zielprojekts aus. Für ein Update wählst du die Einträge erneut aus. Der Installer prüft die Downloads und ersetzt nur ausgewählte, vom Hub verwaltete Skill-Ordner. **Lokale Änderungen in diesen Ordnern gehen beim Update verloren**; prüft Updates deshalb am besten per Git-Diff im Pull Request.
 
 ## Hub starten
