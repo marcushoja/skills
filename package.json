@@ -1,0 +1,15 @@
+{
+  "name": "skills-hub",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node web/build-manifest.mjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "dompurify": "3.5.0",
+    "marked": "18.3.0",
+    "yaml": "2.9.1"
+  }
+}

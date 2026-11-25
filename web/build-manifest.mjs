@@ -1,0 +1,153 @@
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { marked } from 'marked';
+import { parseDocument } from 'yaml';
+import { normalizeBaseUrl, splitFrontmatter } from './hub-core.js';
+
+const webDir = path.dirname(fileURLToPath(import.meta.url));
+const visibleEntries = (dir) => fs.readdirSync(dir, { withFileTypes: true })
+  .filter(({ name }) => !name.startsWith('.') && !name.endsWith(':Zone.Identifier'));
+
+function safeName(name) {
+  if (/[\x00-\x1f\x7f\\]/.test(name)) throw new Error(`Nicht unterstützter Pfadname: ${JSON.stringify(name)}`);
+  return name;
+}
+
+function listFiles(dir, prefix = '') {
+  return visibleEntries(dir).flatMap((entry) => {
+    const file = `${prefix}${safeName(entry.name)}`;
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) return listFiles(fullPath, `${file}/`);
+    if (entry.isFile()) return [file];
+    throw new Error(`Nur reguläre Dateien sind erlaubt: ${fullPath}`);
+  });
+}
+
+function parseSkill(raw, file, id) {
+  const { frontmatter, body } = splitFrontmatter(raw);
+  if (frontmatter === null) throw new Error(`${file}: YAML-Frontmatter fehlt`);
+  const document = parseDocument(frontmatter);
+  if (document.errors.length) throw new Error(`${file}: Ungültiges YAML: ${document.errors[0].message}`);
+  const name = document.get('name');
+  const description = document.get('description');
+  if (name !== id) throw new Error(`${file}: Frontmatter-Feld "name" muss "${id}" entsprechen`);
+  if (typeof description !== 'string' || !description.trim()) {
+    throw new Error(`${file}: Frontmatter-Feld "description" muss ein nicht leerer Text sein`);
+  }
+
+  const refs = new Set();
+  marked.walkTokens(marked.lexer(body), (token) => {
+    if (token.type === 'codespan' && token.text !== id) refs.add(token.text);
+  });
+  return { description: description.trim(), refs };
+}
+
+export function createManifest(root, downloadBaseUrl = '') {
+  const skills = Object.create(null);
+  const skillRefs = new Map();
+
+  function scan(repoDir, type) {
+    const dir = path.join(root, repoDir);
+    const stat = fs.lstatSync(dir, { throwIfNoEntry: false });
+    if (!stat) return [];
+    if (!stat.isDirectory()) throw new Error(`Kein regulärer Kategorie-Ordner: ${dir}`);
+    return visibleEntries(dir).sort((a, b) => a.name.localeCompare(b.name, 'de')).flatMap((entry) => {
+      if (entry.isSymbolicLink()) throw new Error(`Symlinks sind nicht erlaubt: ${path.join(dir, entry.name)}`);
+      if (!entry.isDirectory()) return [];
+      const id = safeName(entry.name);
+      const repoPath = `${repoDir}/${id}`;
+      const fullPath = path.join(root, repoPath);
+      const skillMd = path.join(fullPath, 'SKILL.md');
+      const skillStat = fs.lstatSync(skillMd, { throwIfNoEntry: false });
+      if (!skillStat) {
+        const children = scan(repoPath, type);
+        return children.length ? [{ kind: 'category', name: id, children }] : [];
+      }
+
+      if (!skillStat.isFile()) throw new Error(`Keine reguläre Datei: ${skillMd}`);
+      if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`Ungültiger Skill-Name: ${repoPath}`);
+      if (type === 'workflow' ? !/^mh-wf-.+/.test(id) : !/^mh-.+/.test(id) || id.startsWith('mh-wf-')) {
+        throw new Error(`Falsches Präfix für ${type}: ${repoPath}`);
+      }
+      if (Object.hasOwn(skills, id)) {
+        throw new Error(`Doppelter Skill-Name "${id}": ${skills[id].repoPath} und ${repoPath}`);
+      }
+
+      const { description, refs } = parseSkill(fs.readFileSync(skillMd, 'utf8'), skillMd, id);
+      const files = ['SKILL.md', ...listFiles(fullPath).filter((file) => file !== 'SKILL.md').sort()];
+      const fileInfo = Object.fromEntries(files.map((file) => {
+        const source = path.join(fullPath, file);
+        const bytes = fs.readFileSync(source);
+        return [file, {
+          size: bytes.length,
+          sha256: createHash('sha256').update(bytes).digest('hex'),
+          executable: Boolean(fs.statSync(source).mode & 0o111),
+        }];
+      }));
+      skills[id] = { id, type, repoPath, description, files, fileInfo, directDeps: [], allDeps: [] };
+      skillRefs.set(id, refs);
+      return [{ kind: 'skill', id }];
+    });
+  }
+
+  const tree = { workflows: scan('workflows', 'workflow'), skills: scan('skills', 'skill') };
+  for (const skill of Object.values(skills)) {
+    skill.directDeps = [...skillRefs.get(skill.id)].filter((id) => Object.hasOwn(skills, id)).sort();
+  }
+  for (const skill of Object.values(skills)) {
+    const visited = new Set([skill.id]);
+    const pending = [...skill.directDeps];
+    while (pending.length) {
+      const id = pending.pop();
+      if (visited.has(id)) continue;
+      visited.add(id);
+      pending.push(...skills[id].directDeps);
+    }
+    visited.delete(skill.id);
+    skill.allDeps = [...visited].sort();
+  }
+
+  return { generatedAt: new Date().toISOString(), downloadBaseUrl: normalizeBaseUrl(downloadBaseUrl), tree, skills };
+}
+
+export function buildSite(root, downloadBaseUrl = '') {
+  const manifest = createManifest(root, downloadBaseUrl);
+  const out = path.join(root, 'dist');
+  // dist/ is generated output, including skill files that may disappear between builds.
+  fs.rmSync(out, { recursive: true, force: true });
+  fs.mkdirSync(path.join(out, 'vendor'), { recursive: true });
+  for (const file of ['index.html', 'app.js', 'style.css', 'hub-core.js']) {
+    fs.copyFileSync(path.join(webDir, file), path.join(out, file));
+  }
+  const modules = path.join(webDir, '..', 'node_modules');
+  for (const [source, dest] of [
+    ['marked/lib/marked.esm.js', 'marked.js'],
+    ['marked/LICENSE', 'marked.LICENSE'],
+    ['dompurify/dist/purify.es.mjs', 'purify.mjs'],
+    ['dompurify/LICENSE', 'purify.LICENSE'],
+  ]) {
+    fs.copyFileSync(path.join(modules, source), path.join(out, 'vendor', dest));
+  }
+  for (const skill of Object.values(manifest.skills)) {
+    for (const file of skill.files) {
+      const relative = `${skill.repoPath}/${file}`;
+      const destination = path.join(out, relative);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(path.join(root, relative), destination);
+    }
+  }
+  fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  return manifest;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    const manifest = buildSite(path.dirname(webDir), process.env.DOWNLOAD_BASE_URL);
+    console.log(`Skills Hub gebaut: ${Object.keys(manifest.skills).length} Skills und Workflows in dist/.`);
+  } catch (error) {
+    console.error(`Build fehlgeschlagen: ${error.message}`);
+    process.exitCode = 1;
+  }
+}

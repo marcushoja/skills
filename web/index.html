@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101722">
+  <title>Skills Hub</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div><p class="eyebrow">AI-Agenten · Skill-Katalog</p><h1>Skills Hub</h1></div>
+    <div class="top-actions">
+      <nav class="top-links" aria-label="Projektlinks">
+        <a class="quiet" href="https://github.com/marcushoja/skills/fork">Auf GitHub forken</a>
+        <a class="quiet coffee" href="https://buy.stripe.com/28EcMYfpF4vw4ZbcUj9bO08">Buy me a coffee</a>
+      </nav>
+      <p id="catalog-status" role="status">Katalog wird geladen …</p>
+    </div>
+  </header>
+  <main>
+    <div class="workspace">
+      <nav class="panel library" aria-label="Skill-Katalog">
+        <h2>Katalog</h2>
+        <p class="muted">Name für die Vorschau, Checkbox für die Installation.</p>
+        <div id="tree"></div>
+      </nav>
+      <section class="panel preview" aria-labelledby="preview-title">
+        <header class="preview-header">
+          <div class="title-row"><h2 id="preview-title">Vorschau</h2><span id="skill-type" class="badge" hidden></span></div>
+          <p id="description" class="muted">Wähle einen Skill aus dem Katalog.</p>
+        </header>
+        <div id="dependencies" class="dependencies" hidden></div>
+        <div id="files" class="files" role="group" aria-label="Dateivorschau" hidden></div>
+        <div id="content" role="region" aria-label="Dateiinhalt" aria-live="polite" tabindex="0"></div>
+      </section>
+    </div>
+    <section class="panel install" aria-labelledby="install-title">
+      <div class="title-row install-heading">
+        <h2 id="install-title">Im Projekt installieren</h2>
+        <button id="clear" class="quiet" type="button" disabled>Auswahl zurücksetzen</button>
+      </div>
+      <p class="muted">Führe den Befehl im Projektstamm aus. Der Hub ersetzt nur seine eigenen, ausgewählten Skill-Ordner.</p>
+      <div class="controls">
+        <label for="tool">Ziel-Tool</label>
+        <select id="tool"><option value="claude">Claude Code</option><option value="opencode">OpenCode</option><option value="codex">Codex</option></select>
+        <code id="target"></code>
+        <span id="selection" class="muted" role="status"></span>
+      </div>
+      <label for="command">Installationsbefehl</label>
+      <textarea id="command" readonly rows="8" wrap="off" spellcheck="false" placeholder="Wähle mindestens einen Skill."></textarea>
+      <div class="controls">
+        <button id="copy" class="primary" type="button" disabled>Befehl kopieren</button>
+        <span id="copy-status" role="status"></span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
