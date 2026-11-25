@@ -33,17 +33,17 @@
     <div class="workspace">
       <nav class="panel library" aria-label="Skill-Katalog">
         <h2>Katalog</h2>
-        <p class="muted">Name für die Vorschau, Checkbox für die Installation.</p>
+        <p class="muted">Klicke auf den Namen für die Vorschau oder auf das Feld daneben für die Installation.</p>
         <div id="tree"></div>
         <details class="group" id="project-templates" open hidden>
           <summary>Projektvorlagen</summary>
-          <p class="group-description">Startpunkt für die <code>AGENTS.md</code> mit den Regeln fürs Projekt.</p>
-          <div class="template-controls">
-            <select id="project-template" aria-label="Projektvorlage für die Installation">
-              <option value="">Keine Vorlage installieren</option>
-            </select>
-            <button id="preview-template" class="quiet" type="button" disabled>Vorlage ansehen</button>
-          </div>
+          <p class="group-description">Wähle höchstens eine <code>AGENTS.md</code> mit Regeln fürs Projekt.</p>
+          <fieldset class="template-choices" id="template-choices" aria-label="Projektvorlage für die Installation">
+            <label class="skill-row template-none">
+              <input type="radio" name="project-template" id="no-project-template" value="" checked>
+              <span>Keine Vorlage</span>
+            </label>
+          </fieldset>
         </details>
       </nav>
       <section class="panel preview" aria-labelledby="preview-title">

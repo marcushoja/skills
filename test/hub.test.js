@@ -133,20 +133,38 @@ test('Build liefert exakt die katalogisierten Skill-Dateien aus, auch nach erneu
   assert.throws(() => normalizeBaseUrl('https://user:pass@example.org'), /DOWNLOAD_BASE_URL/);
 });
 
-const templatePath = 'project-templates/java-service.md';
-const templateText = '# Java-Service\n\n- Schreibe Tests für geändertes Verhalten.\n';
+const parentTemplatePath = 'project-templates/entwicklung/java/AGENTS.md';
+const templatePath = 'project-templates/entwicklung/java/spring-boot/AGENTS.md';
+const templateText = '# Spring Boot\n\n- Schreibe Tests für geändertes Verhalten.\n';
 
-test('Build liefert Projektvorlagen separat von Skills und ohne versteckte Dateien aus', (t) => {
+test('Build katalogisiert AGENTS.md in Eltern- und Unterordnern separat und ignoriert andere Dateien', (t) => {
   const repo = tempDir(t);
   const source = write(repo, `_SKILLS/${templatePath}`, templateText);
-  write(repo, '_SKILLS/project-templates/.privat.md', '# Privat');
-  addSkill(repo, 'skills', 'mh-java', 'Siehe `java-service`.');
-  const { skills, projectTemplates } = buildSite(repo);
+  write(repo, `_SKILLS/${parentTemplatePath}`, '# Java allgemein');
+  write(repo, '_SKILLS/project-templates/.privat/AGENTS.md', '# Privat');
+  write(repo, '_SKILLS/project-templates/entwicklung/java/spring-boot/README.md', '# Kein Eintrag');
+  addSkill(repo, 'skills', 'mh-java', 'Siehe `entwicklung/java/AGENTS.md`.');
+  const { tree, skills, projectTemplates } = buildSite(repo);
   assert.deepEqual(skills['mh-java'].allDeps, []);
-  assert.deepEqual(projectTemplates.map(({ id, title }) => [id, title]), [['java-service', 'Java-Service']]);
+  assert.deepEqual(projectTemplates.map(({ id, title }) => [id, title]), [
+    ['entwicklung/java/AGENTS.md', 'Java allgemein'],
+    ['entwicklung/java/spring-boot/AGENTS.md', 'Spring Boot'],
+  ]);
+  assert.deepEqual(tree.projectTemplates, [{
+    kind: 'category', name: 'entwicklung', children: [{
+      kind: 'category', name: 'java', children: [
+        { kind: 'template', id: 'entwicklung/java/AGENTS.md' },
+        { kind: 'category', name: 'spring-boot', children: [{ kind: 'template', id: 'entwicklung/java/spring-boot/AGENTS.md' }] },
+      ],
+    }],
+  }]);
+  assert.equal(fs.readFileSync(path.join(repo, 'dist', parentTemplatePath), 'utf8'), '# Java allgemein');
   assert.equal(fs.readFileSync(path.join(repo, 'dist', templatePath), 'utf8'), templateText);
-  assert.equal(fs.existsSync(path.join(repo, 'dist/project-templates/.privat.md')), false);
-  fs.symlinkSync(source, path.join(path.dirname(source), 'verlinkt.md'));
+  assert.equal(fs.existsSync(path.join(repo, 'dist/project-templates/.privat')), false);
+  assert.equal(fs.existsSync(path.join(repo, 'dist', path.dirname(templatePath), 'README.md')), false);
+  const linked = path.join(repo, '_SKILLS/project-templates/anderes');
+  fs.mkdirSync(linked);
+  fs.symlinkSync(source, path.join(linked, 'AGENTS.md'));
   assert.throws(() => buildSite(repo), /Symlinks sind nicht erlaubt/);
 });
 
@@ -165,7 +183,9 @@ async function installFixture(t, terminal = 'bash') {
   const content = '#!/bin/sh\nprintf "%s\\n" hello\n';
   fs.chmodSync(write(repo, `_SKILLS/skills/Doku/mh-doc-demo/${filename}`, content), 0o755);
   write(repo, `_SKILLS/${templatePath}`, templateText);
-  const { skills, projectTemplates: [template] } = buildSite(repo);
+  write(repo, `_SKILLS/${parentTemplatePath}`, '# Nicht mitinstallieren');
+  const { skills, projectTemplates } = buildSite(repo);
+  const template = projectTemplates.find(({ repoPath }) => `${repoPath}/AGENTS.md` === templatePath);
   const requests = [];
   let override;
   const server = http.createServer((request, response) => {
@@ -219,6 +239,7 @@ for (const terminal of ['bash', 'powershell']) {
     assert.equal(fs.existsSync(agents), false);
     await install('opencode', { withTemplate: true });
     assert.equal(fs.readFileSync(agents, 'utf8'), templateText);
+    assert.ok(!requests.includes(parentTemplatePath));
     assert.equal(fs.readFileSync(claude, 'utf8'), 'Eigene Claude-Anweisungen.');
     assert.ok(fs.readdirSync(project).every((file) => !file.startsWith('.skills-hub-project.')));
   });

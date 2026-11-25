@@ -32,7 +32,11 @@ Die Anwendung:
 │   │               └── references/
 │   │                   └── grid-patterns.md
 │   └── project-templates/
-│       └── java-service.md
+│       └── entwicklung/
+│           └── java/
+│               ├── AGENTS.md
+│               └── spring-boot/
+│                   └── AGENTS.md
 ├── web/
 │   ├── build-manifest.mjs             # Node.js Build-Skript (Zero Dependencies)
 │   ├── index.html
@@ -57,7 +61,7 @@ Die Anwendung:
   * Workflow-Skills sollten zusätzlich `disable-model-invocation: true` setzen, damit sie nicht versehentlich automatisch ausgelöst werden.
 * **Abhängigkeiten (ohne eigene Metadaten-Tags):**
   * Referenziert eine `SKILL.md` einen anderen im Repo existierenden Skill-Namen in Backticks (z. B. `` `mh-java-clean-code` ``), wird dies beim Build automatisch als Abhängigkeit erkannt.
-* **Projektvorlagen:** Markdown-Dateien direkt unter `_SKILLS/project-templates/`. Der Dateiname ohne `.md` ist die ID, die erste `#`-Überschrift der Anzeigename. Das Manifest führt sie separat von Skills; sie haben keine automatischen Abhängigkeiten.
+* **Projektvorlagen:** Der Verzeichnisbaum unter `_SKILLS/project-templates/` kann pro Ordner eine `AGENTS.md` enthalten, auch wenn derselbe Ordner weitere Unterordner mit Vorlagen enthält. Der relative Dateipfad ist die ID, die erste `#`-Überschrift der Anzeigename. Das Manifest führt die Vorlagen separat von Skills; sie haben keine automatischen Abhängigkeiten und erben nichts von Elternordnern.
 
 ---
 
@@ -285,7 +289,7 @@ console.log(`Manifest erfolgreich gebaut: ${skillsMap.size} Skills/Workflows.`);
 
 ### Layout & Funktionsumfang
 1. **Linke Seitenleiste (Baumstruktur):**
-   * Aufklappbare Hauptbereiche: **Workflows**, **Skills** und **Projektvorlagen**. Eine Projektvorlage lässt sich unabhängig von Skills auswählen und in der Vorschau lesen.
+   * Aufklappbare Hauptbereiche: **Workflows**, **Skills** und **Projektvorlagen**. Im Vorlagenbaum lädt der Name die Vorschau, ein Radiobutton wählt unabhängig von den Skills höchstens eine Vorlage aus.
    * Kategorie-Ordner sind auf- und zuklappbar (optional mit Kategorie-Checkbox zum gesammelten An-/Abwählen aller enthaltenen Skills).
    * Jeder Skill zeigt eine Checkbox und seinen klickbaren Namen (lädt rechts die Vorschau).
    * **Abhängigkeits-Logik:** Wird ein Skill mit `allDeps` angehakt, werden alle benötigten Skills im Baum automatisch mitmarkiert, als *„benötigt von …“* gekennzeichnet und gegen manuelles Abwählen gesperrt, solange mindestens ein abhängiger Skill angehakt ist.

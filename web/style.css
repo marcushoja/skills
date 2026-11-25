@@ -46,8 +46,11 @@ main { padding-bottom: 2rem; }
 .group { padding: .65rem 0; border-top: 1px solid var(--border); }
 .group > summary { color: var(--accent); }
 .group-description { margin-block: .2rem .45rem; color: var(--muted); font-size: .8125rem; }
-.template-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
-.template-controls :is(select, button) { max-width: 100%; font-size: .875rem; }
+.template-choices { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.template-choices .skill-name { font-family: inherit; }
+.template-none { width: fit-content; align-items: center; color: var(--muted); font-size: .86rem; cursor: pointer; }
+.template-none input { margin-block-start: 0; }
+.template-none span { padding-block: .23rem; }
 #tree { margin-top: 1.1rem; }
 summary { cursor: pointer; font-weight: 650; overflow-wrap: anywhere; }
 .tree-list { list-style: none; margin: .25rem 0; padding-inline-start: .7rem; border-inline-start: 1px solid var(--border); }

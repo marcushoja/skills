@@ -173,10 +173,12 @@ export function generateInstallCommand(skills, manual, tool, downloadBaseUrl, te
   let template = null;
   if (projectTemplate) {
     const { id, repoPath, fileInfo } = projectTemplate;
-    const file = `${id}.md`;
+    const file = 'AGENTS.md';
+    const parts = pathParts(repoPath);
+    const expectedId = [...parts.slice(1), file].join('/');
     const sha256 = fileInfo?.[file]?.sha256;
-    if (typeof id !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) ||
-        repoPath !== 'project-templates' || !/^[a-f0-9]{64}$/.test(sha256)) {
+    if (parts[0] !== 'project-templates' || parts.some((part) => part.startsWith('.')) ||
+        id !== expectedId || !/^[a-f0-9]{64}$/.test(sha256)) {
       throw new Error('Ungültige Projektvorlage im Manifest.');
     }
     template = { url: fileUrl(base, repoPath, file), sha256, existingAgentsWarning, existingAgentsHelp };

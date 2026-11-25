@@ -1,4 +1,4 @@
-# Java-Service
+# Java allgemein
 
 - Benenne Klassen, Methoden und Variablen auf Englisch. Halte dich an die vorhandene Paketstruktur und Trennung der Schichten.
 - Ergänze bei Verhaltensänderungen Tests für den Normalfall und relevante Fehlerfälle. Verwende die vorhandenen Testbibliotheken und Konventionen.

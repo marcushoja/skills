@@ -24,8 +24,9 @@ const projectTemplates = new Map();
 const skillRows = new Map();
 const fileButtons = new Map();
 const toolHelp = document.querySelectorAll('[data-tool-help]');
+const templateChoices = $('template-choices');
 let manifest;
-let activeSkill;
+let activePreview;
 let previewRequest;
 
 function renderTree(nodes, parent) {
@@ -38,6 +39,18 @@ function renderTree(nodes, parent) {
       section.append(element('summary', node.name));
       renderTree(node.children, section);
       item.append(section);
+    } else if (node.kind === 'template') {
+      const template = projectTemplates.get(node.id);
+      const row = element('div', undefined, 'skill-row');
+      const radio = element('input');
+      radio.type = 'radio';
+      radio.name = 'project-template';
+      radio.value = node.id;
+      radio.setAttribute('aria-label', `Vorlage ${template.title} installieren`);
+      const name = button(template.title, 'skill-name');
+      name.addEventListener('click', () => showProjectTemplate(template, name));
+      row.append(radio, name);
+      item.append(row);
     } else {
       const row = element('div', undefined, 'skill-row');
       const checkbox = element('input');
@@ -102,8 +115,7 @@ function updateSelection() {
   $('copy-status').textContent = '';
   updateInvocations(tool);
   if (!manifest) return;
-  const template = projectTemplates.get($('project-template').value);
-  $('preview-template').disabled = !template;
+  const template = projectTemplates.get(templateChoices.querySelector('input:checked')?.value);
   const { ids, requiredBy } = getSelection(manifest.skills, manual);
   for (const [id, { checkbox, reason }] of skillRows) {
     const required = requiredBy.get(id);
@@ -114,7 +126,7 @@ function updateSelection() {
   }
   const selected = [];
   if (ids.length) selected.push(`${ids.length} Skills insgesamt · ${manual.size} direkt ausgewählt`);
-  if (template) selected.push('AGENTS.md (falls nicht vorhanden)');
+  if (template) selected.push(`AGENTS.md: ${template.title} (falls nicht vorhanden)`);
   $('selection').textContent = selected.join(' · ') || 'Keine Auswahl';
   $('clear').disabled = !manual.size && !template;
   document.querySelector('.after-install').hidden = Boolean(template && !ids.length);
@@ -127,11 +139,14 @@ function updateSelection() {
   $('copy').disabled = !$('command').value;
 }
 
-function showProjectTemplate() {
-  const template = projectTemplates.get($('project-template').value);
-  if (!template) return;
-  if (activeSkill) skillRows.get(activeSkill).name.removeAttribute('aria-current');
-  activeSkill = undefined;
+function setActivePreview(name) {
+  activePreview?.removeAttribute('aria-current');
+  activePreview = name;
+  activePreview.setAttribute('aria-current', 'true');
+}
+
+function showProjectTemplate(template, name) {
+  setActivePreview(name);
   $('preview-title').textContent = template.title;
   $('skill-type').textContent = 'Projektvorlage';
   $('skill-type').hidden = false;
@@ -144,9 +159,7 @@ function showProjectTemplate() {
 
 function showSkill(id) {
   const skill = manifest.skills[id];
-  if (activeSkill) skillRows.get(activeSkill).name.removeAttribute('aria-current');
-  activeSkill = id;
-  skillRows.get(id).name.setAttribute('aria-current', 'true');
+  setActivePreview(skillRows.get(id).name);
   $('preview-title').textContent = id;
   $('skill-type').textContent = skill.type === 'workflow' ? 'Workflow' : 'Skill';
   $('skill-type').hidden = false;
@@ -261,11 +274,10 @@ for (const [id, key] of preferences) {
     updateSelection();
   });
 }
-$('project-template').addEventListener('change', updateSelection);
-$('preview-template').addEventListener('click', showProjectTemplate);
+templateChoices.addEventListener('change', updateSelection);
 $('clear').addEventListener('click', () => {
   manual.clear();
-  $('project-template').value = '';
+  $('no-project-template').checked = true;
   updateSelection();
 });
 $('copy').addEventListener('click', () => copyField($('command'), $('copy-status')));
@@ -295,13 +307,11 @@ async function init() {
       else group.append(element('p', 'Noch keine Einträge.', 'muted'));
       $('tree').append(group);
     }
-    for (const template of manifest.projectTemplates ?? []) {
-      projectTemplates.set(template.id, template);
-      const option = element('option', template.title);
-      option.value = template.id;
-      $('project-template').append(option);
+    if (manifest.tree.projectTemplates?.length) {
+      for (const template of manifest.projectTemplates) projectTemplates.set(template.id, template);
+      renderTree(manifest.tree.projectTemplates, templateChoices);
+      $('project-templates').hidden = false;
     }
-    $('project-templates').hidden = !projectTemplates.size;
     const count = Object.keys(manifest.skills).length;
     const templateCount = projectTemplates.size;
     $('catalog-status').textContent = `${count} ${count === 1 ? 'Skill' : 'Skills'} inkl. Workflows`

@@ -46,28 +46,47 @@ function parseSkill(raw, file, id) {
 }
 
 function scanProjectTemplates(catalogRoot) {
-  const repoPath = 'project-templates';
-  const dir = path.join(catalogRoot, repoPath);
-  const stat = fs.lstatSync(dir, { throwIfNoEntry: false });
-  if (!stat) return [];
-  if (!stat.isDirectory()) throw new Error(`Kein regulärer Vorlagen-Ordner: ${dir}`);
-  return visibleEntries(dir).sort((a, b) => a.name.localeCompare(b.name, 'de')).flatMap((entry) => {
-    if (entry.isSymbolicLink()) throw new Error(`Symlinks sind nicht erlaubt: ${path.join(dir, entry.name)}`);
-    if (!entry.name.endsWith('.md')) return [];
-    const file = entry.name;
-    const id = file.slice(0, -3);
-    if (!entry.isFile() || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) {
-      throw new Error(`Ungültige Projektvorlage: ${path.join(dir, file)}`);
+  const base = 'project-templates';
+  const root = path.join(catalogRoot, base);
+  const stat = fs.lstatSync(root, { throwIfNoEntry: false });
+  const templates = [];
+  if (!stat) return { nodes: [], templates };
+  if (!stat.isDirectory()) throw new Error(`Kein regulärer Vorlagen-Ordner: ${root}`);
+
+  function scan(parents = []) {
+    const repoPath = [base, ...parents].join('/');
+    const dir = path.join(catalogRoot, repoPath);
+    const entries = visibleEntries(dir).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    const nodes = [];
+    const file = 'AGENTS.md';
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) throw new Error(`Symlinks sind nicht erlaubt: ${path.join(dir, entry.name)}`);
     }
-    const bytes = fs.readFileSync(path.join(dir, file));
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-    if (!text.trim() || /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(text)) throw new Error(`Kein Markdown-Text: ${file}`);
-    const title = text.match(/^[ \t]*#[ \t]+(.+?)[ \t]*$/m)?.[1] ?? id;
-    return [{
-      id, title, repoPath, files: [file],
-      fileInfo: { [file]: { size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') } },
-    }];
-  });
+    const own = entries.find(({ name }) => name === file);
+    if (own) {
+      const source = path.join(dir, file);
+      if (!own.isFile()) throw new Error(`Keine reguläre Projektvorlage: ${source}`);
+      const bytes = fs.readFileSync(source);
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      if (!text.trim() || /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(text)) throw new Error(`Kein Markdown-Text: ${source}`);
+      const id = [...parents, file].join('/');
+      const title = text.match(/^[ \t]*#[ \t]+(.+?)[ \t]*$/m)?.[1] ?? parents.at(-1) ?? file;
+      templates.push({
+        id, title, repoPath, files: [file],
+        fileInfo: { [file]: { size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') } },
+      });
+      nodes.push({ kind: 'template', id });
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const name = safeName(entry.name);
+      const children = scan([...parents, name]);
+      if (children.length) nodes.push({ kind: 'category', name, children });
+    }
+    return nodes;
+  }
+
+  return { nodes: scan(), templates };
 }
 
 export function createManifest(root, downloadBaseUrl = '') {
@@ -124,7 +143,8 @@ export function createManifest(root, downloadBaseUrl = '') {
     });
   }
 
-  const tree = { workflows: scan('workflows', 'workflow'), skills: scan('skills', 'skill') };
+  const { nodes: templateNodes, templates: projectTemplates } = scanProjectTemplates(catalogRoot);
+  const tree = { workflows: scan('workflows', 'workflow'), skills: scan('skills', 'skill'), projectTemplates: templateNodes };
   for (const skill of Object.values(skills)) {
     skill.directDeps = [...skillRefs.get(skill.id)].filter((id) => Object.hasOwn(skills, id)).sort();
   }
@@ -141,7 +161,6 @@ export function createManifest(root, downloadBaseUrl = '') {
     skill.allDeps = [...visited].sort();
   }
 
-  const projectTemplates = scanProjectTemplates(catalogRoot);
   return { generatedAt: new Date().toISOString(), downloadBaseUrl: normalizeBaseUrl(downloadBaseUrl), tree, skills, projectTemplates };
 }
 

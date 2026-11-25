@@ -20,7 +20,15 @@ Skills zentral im Team pflegen, aber nur dort installieren, wo sie gebraucht wer
 
 ## Projektvorlagen für `AGENTS.md`
 
-Lege kurze Projektregeln als Markdown unter [`_SKILLS/project-templates/`](_SKILLS/project-templates/) ab, etwa `java-service.md`. Die erste `#`-Überschrift ist der Anzeigename. Die Vorlage wird separat ausgewählt und kann auch ohne Skills installiert werden.
+Lege in jedem passenden Ordner unter [`_SKILLS/project-templates/`](_SKILLS/project-templates/) eine `AGENTS.md` ab. Die Ordner bilden den Baum; die erste `#`-Überschrift ist der Anzeigename. Ein Ordner kann eine eigene Vorlage und weitere Unterordner haben, zum Beispiel:
+
+```text
+entwicklung/java/AGENTS.md
+entwicklung/java/spring-boot/AGENTS.md
+marketing/praesentationen/AGENTS.md
+```
+
+Klicke auf den Namen für die Vorschau oder wähle über den Radiobutton genau eine Vorlage aus. Sie kann auch ohne Skills installiert werden. Bei Spring Boot wird nur dessen Datei übernommen, nicht zusätzlich die Java-Vorlage darüber.
 
 Der Installer legt `AGENTS.md` für alle Ziel-Tools im Projektstamm an. Eine schon vorhandene Datei bleibt unverändert: Die ausgewählten Skills werden trotzdem installiert, und am Ende erscheint ein Hinweis zur manuellen Übernahme. Checkt die angepasste `AGENTS.md` ins Projekt-Repo ein.
 
