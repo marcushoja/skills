@@ -109,7 +109,7 @@ const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
 
   $location = Get-Location
   if ($location.Provider.Name -ne 'FileSystem') { throw 'Bitte im Zielprojekt im Dateisystem ausführen.' }
-  $project = $location.ProviderPath
+  $project = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath('.')
   if ([IO.Path]::GetPathRoot($project) -eq $project) { throw 'Bitte im Zielprojekt ausführen, nicht im Wurzelverzeichnis.' }
   $target = [IO.Path]::GetFullPath([IO.Path]::Combine($project, $target))
   New-HubDirectory ([IO.Path]::GetDirectoryName($target))

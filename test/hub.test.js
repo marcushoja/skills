@@ -165,7 +165,7 @@ async function installFixture(t, terminal = 'bash') {
       write(project, 'install.ps1', command);
       // Execute the text as pasted input, without changing the execution policy.
       return exec(powershell, ['-NoProfile', '-NonInteractive', '-Command',
-        "[Console]::OutputEncoding = [Text.Encoding]::UTF8; & ([scriptblock]::Create([IO.File]::ReadAllText('install.ps1')))"],
+        "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Set-Location -LiteralPath ([IO.Directory]::GetCurrentDirectory()); & ([scriptblock]::Create([IO.File]::ReadAllText('install.ps1')))"],
       { cwd: project, timeout: 15000 });
     }
     const script = write(project, 'install.sh', command);
@@ -262,6 +262,8 @@ test('PowerShell installiert und aktualisiert Abhängigkeiten, Sonderzeichen und
     const unselected = write(project, `${target}/mh-unselected/.skills-hub-managed`, 'skills-hub:mh-unselected\n');
     const { stdout } = await install(tool);
     assert.match(stdout, /Installiert unter/);
+    const installedPath = stdout.split(/\r?\n/)[0].slice('Installiert unter '.length, -1);
+    assert.ok(fs.existsSync(path.join(project, skill)), `Unerwarteter Installationspfad: ${installedPath}`);
     assert.equal(fs.readFileSync(path.join(project, skill, filename), 'utf8'), content);
     assert.equal(fs.readFileSync(path.join(project, `${target}/mh-wf-demo/SKILL.md`), 'utf8'), workflowBody);
     assert.equal(fs.readFileSync(path.join(project, skill, '.skills-hub-managed'), 'utf8'), 'skills-hub:mh-doc-demo\n');
