@@ -9,8 +9,8 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -27,10 +27,11 @@ jobs:
     env:
       SKILLS_HUB_POWERSHELL: ${{ matrix.powershell }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm test -- --test-name-pattern=PowerShell
+        shell: cmd

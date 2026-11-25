@@ -27,36 +27,62 @@ ${installer}
 const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
   $marker = '.skills-hub-managed'
 
-  function Get-HubItem($path) {
-    try { Get-Item -LiteralPath $path -Force }
-    catch [System.Management.Automation.ItemNotFoundException] { }
+  function Get-HubAttributes($path) {
+    try { [IO.File]::GetAttributes($path) }
+    catch [IO.FileNotFoundException], [IO.DirectoryNotFoundException] { }
   }
 
-  function Test-HubLink($item) {
-    return ($null -ne $item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+  function Test-HubLink($attributes) {
+    return (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+  }
+
+  function Test-HubDirectory($attributes) {
+    return (($attributes -band [IO.FileAttributes]::Directory) -ne 0)
   }
 
   function New-HubDirectory($path) {
-    $item = Get-HubItem $path
-    if (Test-HubLink $item) { throw "Kein Einbau über einen Symlink oder eine Junction: $path" }
+    if (Test-HubLink (Get-HubAttributes $path)) { throw "Kein Einbau über einen Symlink oder eine Junction: $path" }
     [void][IO.Directory]::CreateDirectory($path)
+  }
+
+  function Remove-HubStage($path) {
+    $attributes = Get-HubAttributes $path
+    if ($null -eq $attributes) { return }
+    if (Test-HubDirectory $attributes) {
+      # Junctions nur als Eintrag entfernen, nicht in ihr Ziel wechseln.
+      if (-not (Test-HubLink $attributes)) {
+        foreach ($entry in [IO.Directory]::EnumerateFileSystemEntries($path)) { Remove-HubStage $entry }
+      }
+      [IO.Directory]::Delete($path)
+    } else {
+      [IO.File]::Delete($path)
+    }
   }
 
   function Get-HubDestination($id) {
     $path = [IO.Path]::Combine($target, $id)
-    $item = Get-HubItem $path
-    if ($null -ne $item) {
-      if ((Test-HubLink $item) -or -not $item.PSIsContainer) {
+    $attributes = Get-HubAttributes $path
+    if ($null -ne $attributes) {
+      if ((Test-HubLink $attributes) -or -not (Test-HubDirectory $attributes)) {
         throw "Nicht vom Skills Hub verwalteter Eintrag bleibt erhalten: $path"
       }
       $markerPath = [IO.Path]::Combine($path, $marker)
-      $tag = Get-HubItem $markerPath
-      if ($null -eq $tag -or (Test-HubLink $tag) -or $tag.PSIsContainer -or
+      $tag = Get-HubAttributes $markerPath
+      if ($null -eq $tag -or (Test-HubLink $tag) -or (Test-HubDirectory $tag) -or
           [IO.File]::ReadAllText($markerPath).TrimEnd([char[]]@(13, 10)) -cne "skills-hub:$id") {
         throw "Nicht vom Skills Hub verwalteter Eintrag bleibt erhalten: $path"
       }
     }
-    return $item
+    return $attributes
+  }
+
+  function Get-HubSha256($path) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+      $stream = [IO.File]::OpenRead($path)
+      try { return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') }
+      finally { $stream.Dispose() }
+    } finally { $sha.Dispose() }
   }
 
   function Save-HubFile($url, $path) {
@@ -114,7 +140,7 @@ const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
         $stagedFile = [IO.Path]::GetFullPath([IO.Path]::Combine($stagedSkill, $file.file))
         [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($stagedFile))
         Save-HubFile $file.url $stagedFile
-        if ((Get-FileHash -LiteralPath $stagedFile -Algorithm SHA256).Hash -ne $file.sha256) {
+        if ((Get-HubSha256 $stagedFile) -ne $file.sha256) {
           throw "Prüfsumme stimmt nicht: $stagedFile (bitte Hub neu laden)"
         }
       }
@@ -127,10 +153,10 @@ const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
     foreach ($skill in $plan) {
       $dest = [IO.Path]::Combine($target, $skill.id)
       $saved = [IO.Path]::Combine($backup, $skill.id)
-      if (Get-HubDestination $skill.id) { [IO.Directory]::Move($dest, $saved) }
+      if ($null -ne (Get-HubDestination $skill.id)) { [IO.Directory]::Move($dest, $saved) }
       try { [IO.Directory]::Move([IO.Path]::Combine($new, $skill.id), $dest) }
       catch {
-        if ([IO.Directory]::Exists($saved) -and -not (Get-HubItem $dest)) { [IO.Directory]::Move($saved, $dest) }
+        if ([IO.Directory]::Exists($saved) -and $null -eq (Get-HubAttributes $dest)) { [IO.Directory]::Move($saved, $dest) }
         throw
       }
     }
@@ -142,7 +168,7 @@ const installer = String.raw`  $plan = ConvertFrom-Json -InputObject $planJson
       if ($client) { $client.Dispose() }
       if ($stage) {
         if ($preserve) { Write-Warning "Einbau unterbrochen. Sicherungen können hier liegen: $backup" }
-        else { [IO.Directory]::Delete($stage, $true) }
+        else { Remove-HubStage $stage }
       }
     } finally {
       $lockStream.Dispose()

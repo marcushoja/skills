@@ -165,7 +165,8 @@ async function installFixture(t, terminal = 'bash') {
       write(project, 'install.ps1', command);
       // Execute the text as pasted input, without changing the execution policy.
       return exec(powershell, ['-NoProfile', '-NonInteractive', '-Command',
-        "& ([scriptblock]::Create([IO.File]::ReadAllText('install.ps1')))"], { cwd: project, timeout: 15000 });
+        "[Console]::OutputEncoding = [Text.Encoding]::UTF8; & ([scriptblock]::Create([IO.File]::ReadAllText('install.ps1')))"],
+      { cwd: project, timeout: 15000 });
     }
     const script = write(project, 'install.sh', command);
     return exec('bash', [script], { cwd: project, timeout: 5000 });
