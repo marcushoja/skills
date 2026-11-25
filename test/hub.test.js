@@ -33,7 +33,7 @@ function write(root, file, content) {
 }
 
 function addSkill(root, parent, id, body = '', header = `name: ${id}\ndescription: Ein Beispiel`) {
-  return write(root, `${parent}/${id}/SKILL.md`, `---\n${header}\n---\n\n${body}`);
+  return write(root, `_SKILLS/${parent}/${id}/SKILL.md`, `---\n${header}\n---\n\n${body}`);
 }
 
 test('YAML, tiefe Kategorien und zyklische Abhängigkeiten ohne Selbstreferenz', (t) => {
@@ -80,17 +80,20 @@ for (const [label, prepare, error] of invalidCases) {
 test('Build liefert exakt die katalogisierten Skill-Dateien aus, auch nach erneutem Build', (t) => {
   const repo = tempDir(t);
   addSkill(repo, 'skills/Kategorie', 'mh-eins');
-  write(repo, 'skills/Kategorie/README.md', 'nicht ausliefern');
-  write(repo, 'skills/Kategorie/mh-eins/.env', 'nicht ausliefern');
-  write(repo, 'skills/Kategorie/mh-eins/notes:Zone.Identifier', 'nicht ausliefern');
+  write(repo, '_SKILLS/skills/Kategorie/README.md', 'nicht ausliefern');
+  write(repo, '_SKILLS/skills/Kategorie/mh-eins/.env', 'nicht ausliefern');
+  write(repo, '_SKILLS/skills/Kategorie/mh-eins/notes:Zone.Identifier', 'nicht ausliefern');
+  write(repo, 'skills/mh-alt/SKILL.md', 'außerhalb des Katalogs');
   const reference = 'skills/Kategorie/mh-eins/references/Beispiel #1.md';
-  const source = write(repo, reference, 'Text');
+  const source = write(repo, `_SKILLS/${reference}`, 'Text');
   const { skills } = buildSite(repo);
+  assert.deepEqual(Object.keys(skills), ['mh-eins']);
   const skill = skills['mh-eins'];
   assert.deepEqual(skill.files, ['SKILL.md', 'references/Beispiel #1.md']);
   assert.equal(fileUrl('http://localhost', skill.repoPath, skill.files[1]),
     'http://localhost/skills/Kategorie/mh-eins/references/Beispiel%20%231.md');
   assert.equal(fs.readFileSync(path.join(repo, 'dist', reference), 'utf8'), 'Text');
+  assert.equal(fs.existsSync(path.join(repo, 'dist/_SKILLS')), false);
   assert.equal(fs.existsSync(path.join(repo, 'dist/skills/Kategorie/README.md')), false);
   assert.equal(fs.existsSync(path.join(repo, 'dist/skills/Kategorie/mh-eins/.env')), false);
   assert.equal(fs.existsSync(path.join(repo, 'dist/skills/Kategorie/mh-eins/notes:Zone.Identifier')), false);
@@ -107,15 +110,15 @@ async function installFixture(t) {
   addSkill(repo, 'skills/Doku', 'mh-doc-demo', 'Baustein.');
   const filename = "scripts/hello [1] # ' $(touch SHOULD_NOT_EXIST).sh";
   const content = '#!/bin/sh\nprintf "%s\\n" hello\n';
-  fs.chmodSync(write(repo, `skills/Doku/mh-doc-demo/${filename}`, content), 0o755);
-  const { skills } = createManifest(repo);
+  fs.chmodSync(write(repo, `_SKILLS/skills/Doku/mh-doc-demo/${filename}`, content), 0o755);
+  const { skills } = buildSite(repo);
   const requests = [];
   let override;
   const server = http.createServer((request, response) => {
     const file = decodeURIComponent(new URL(request.url, 'http://localhost').pathname).slice(1);
     requests.push(file);
     if (override?.(file, response)) return;
-    try { response.end(fs.readFileSync(path.join(repo, file))); }
+    try { response.end(fs.readFileSync(path.join(repo, 'dist', file))); }
     catch { response.writeHead(404).end(); }
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

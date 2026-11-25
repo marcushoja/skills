@@ -13,11 +13,11 @@ docker run --rm -p 127.0.0.1:8080:80 skills-hub
 
 **Privat oder öffentlich:** Das Git-Repo und der deployte Hub haben getrennte Sichtbarkeit. Der Hub hat keinen eingebauten Login. Wer ihn erreichen kann, kann die katalogisierten Skill-Dateien auch direkt abrufen. Betreibe ihn bei Bedarf intern, etwa hinter einem VPN, und lege keine Geheimnisse in auszuliefernden Skills ab. Verwende für öffentliches Hosting HTTPS. Standardmäßig kommen Vorschau und Downloads vom Hub selbst. Optional setzt `--build-arg DOWNLOAD_BASE_URL=https://downloads.example.org` nur für den Installationsbefehl eine andere Basis-URL; dort müssen dieselben Dateien verfügbar sein. Der Hub wird am Stamm einer HTTP(S)-Origin betrieben.
 
-## Skills hinzufügen
+## Eigene Inhalte in `_SKILLS/` pflegen
 
-Für eine eigene Sammlung kannst du [das Repo auf GitHub forken](https://github.com/marcushoja/skills/fork). Bei einem privaten Repo ist dafür Zugriff nötig.
+Für eine eigene Sammlung kannst du [das Repo auf GitHub forken](https://github.com/marcushoja/skills/fork). Bei einem privaten Repo ist dafür Zugriff nötig. **Ersetze oder ergänze die Beispiele in [`_SKILLS/`](_SKILLS/).** Den Code des Hubs musst du dafür nicht anfassen.
 
-- Lege Workflows unter `workflows/` und Bausteine unter `skills/` ab. Dazwischen sind beliebig tiefe Kategorie-Ebenen möglich.
+- Lege Workflows unter `_SKILLS/workflows/` und wiederverwendbare Bausteine unter `_SKILLS/skills/` ab. Darunter kannst du nach Themen wie `dokumentation/` oder `java/` gruppieren und Kategorien beliebig tief verschachteln.
 - Sobald ein Ordner eine `SKILL.md` enthält, zählt er als Skill. Dessen sichtbare reguläre Dateien (auch in Unterordnern) werden ausgeliefert. Versteckte Dateien, Windows-`Zone.Identifier`-Dateien und reine Kategorie-Dateien werden nicht veröffentlicht. Der Build lehnt sichtbare Symlinks ab.
 - Skill-Ordner brauchen global eindeutige Namen aus Kleinbuchstaben, Zahlen und Bindestrichen. Verwende `mh-wf-` für Workflows und `mh-` für die übrigen Skills.
 - Im YAML-Frontmatter muss `name` zum Ordner passen und `description` einen nicht leeren Text enthalten. Für Workflows empfiehlt sich `disable-model-invocation: true`.

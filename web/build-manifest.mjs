@@ -7,6 +7,7 @@ import { parseDocument } from 'yaml';
 import { normalizeBaseUrl, splitFrontmatter } from './hub-core.js';
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
+const catalogDirectory = '_SKILLS';
 const visibleEntries = (dir) => fs.readdirSync(dir, { withFileTypes: true })
   .filter(({ name }) => !name.startsWith('.') && !name.endsWith(':Zone.Identifier'));
 
@@ -47,9 +48,14 @@ function parseSkill(raw, file, id) {
 export function createManifest(root, downloadBaseUrl = '') {
   const skills = Object.create(null);
   const skillRefs = new Map();
+  const catalogRoot = path.join(root, catalogDirectory);
+  const catalogStat = fs.lstatSync(catalogRoot, { throwIfNoEntry: false });
+  if (catalogStat && !catalogStat.isDirectory()) {
+    throw new Error(`Kein regulärer Katalog-Ordner: ${catalogRoot}`);
+  }
 
-  function scan(repoDir, type) {
-    const dir = path.join(root, repoDir);
+  function scan(publicDir, type) {
+    const dir = path.join(catalogRoot, publicDir);
     const stat = fs.lstatSync(dir, { throwIfNoEntry: false });
     if (!stat) return [];
     if (!stat.isDirectory()) throw new Error(`Kein regulärer Kategorie-Ordner: ${dir}`);
@@ -57,8 +63,9 @@ export function createManifest(root, downloadBaseUrl = '') {
       if (entry.isSymbolicLink()) throw new Error(`Symlinks sind nicht erlaubt: ${path.join(dir, entry.name)}`);
       if (!entry.isDirectory()) return [];
       const id = safeName(entry.name);
-      const repoPath = `${repoDir}/${id}`;
-      const fullPath = path.join(root, repoPath);
+      // Keep the manifest's public path stable even when sources move.
+      const repoPath = `${publicDir}/${id}`;
+      const fullPath = path.join(dir, id);
       const skillMd = path.join(fullPath, 'SKILL.md');
       const skillStat = fs.lstatSync(skillMd, { throwIfNoEntry: false });
       if (!skillStat) {
@@ -67,9 +74,9 @@ export function createManifest(root, downloadBaseUrl = '') {
       }
 
       if (!skillStat.isFile()) throw new Error(`Keine reguläre Datei: ${skillMd}`);
-      if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`Ungültiger Skill-Name: ${repoPath}`);
+      if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`Ungültiger Skill-Name: ${fullPath}`);
       if (type === 'workflow' ? !/^mh-wf-.+/.test(id) : !/^mh-.+/.test(id) || id.startsWith('mh-wf-')) {
-        throw new Error(`Falsches Präfix für ${type}: ${repoPath}`);
+        throw new Error(`Falsches Präfix für ${type}: ${fullPath}`);
       }
       if (Object.hasOwn(skills, id)) {
         throw new Error(`Doppelter Skill-Name "${id}": ${skills[id].repoPath} und ${repoPath}`);
@@ -135,7 +142,7 @@ export function buildSite(root, downloadBaseUrl = '') {
       const relative = `${skill.repoPath}/${file}`;
       const destination = path.join(out, relative);
       fs.mkdirSync(path.dirname(destination), { recursive: true });
-      fs.copyFileSync(path.join(root, relative), destination);
+      fs.copyFileSync(path.join(root, catalogDirectory, relative), destination);
     }
   }
   fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');

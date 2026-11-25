@@ -4,10 +4,10 @@
 Eine leichtgewichtige, rein statische Webanwendung ohne Backend, ohne Datenbank und ohne GitHub-API-Abhängigkeit, die im selben (privaten) Git-Repository wie die eigenen AI-Agent-Skills liegt.
 
 Die Anwendung:
-1. Liest beim Docker-Build alle `workflows/` und `skills/` ein, validiert Struktur und Metadaten und erzeugt eine statische `manifest.json`.
+1. Liest beim Build `_SKILLS/workflows/` und `_SKILLS/skills/` ein, validiert Struktur und Metadaten und erzeugt eine statische `manifest.json`.
 2. Stellt im Browser eine zweigeteilte Oberfläche bereit: links eine aufklappbare Kategorie-Baumstruktur mit Checkboxen, rechts die Vorschau der gewählten `SKILL.md` (inkl. Abhängigkeiten und lesbarer Zusatzdateien).
 3. Generiert ein Copy-Paste-Shell-Kommando (`rm`, `mkdir`, `curl`), das alle ausgewählten Skills inkl. ihrer Abhängigkeiten **flach** in das Zielprojekt des Nutzers (für **Claude Code**, **OpenCode** oder **Codex**) kopiert.
-4. Da Nginx die Ordner `workflows/` und `skills/` direkt mit ausliefert, lädt das generierte `curl`-Kommando die Dateien direkt vom eigenen Server (`window.location.origin`). Das Git-Repository kann dadurch komplett **privat** bleiben, und es gibt weder GitHub-API-Limits noch GitHub-Raw-Caching-Verzögerungen nach einem Redeploy.
+4. Der Build kopiert die katalogisierten Dateien nach `dist/workflows/` und `dist/skills/`. Nginx liefert sie wie bisher unter `/workflows/` und `/skills/` aus; `_SKILLS/` ist nur der Quellordner. Das generierte `curl`-Kommando lädt die Dateien direkt vom eigenen Server (`window.location.origin`), sodass das Git-Repository privat bleiben kann.
 
 ---
 
@@ -15,20 +15,21 @@ Die Anwendung:
 
 ```text
 <repo-root>/
-├── workflows/                         # Workflow-Skills (Orchestratoren), beliebig tief kategorisierbar
-│   └── java/
-│       └── mh-wf-java-feature/
-│           └── SKILL.md
-├── skills/                            # Atomare Baustein-Skills, beliebig tief kategorisierbar
-│   ├── java/
-│   │   └── mh-java-clean-code/
-│   │       └── SKILL.md
-│   └── javascript/
-│       └── extjs/
-│           └── mh-extjs-components/
-│               ├── SKILL.md
-│               └── references/
-│                   └── grid-patterns.md
+├── _SKILLS/                           # Inhalte, die beim Fork angepasst werden
+│   ├── workflows/
+│   │   └── java/
+│   │       └── mh-wf-java-feature/
+│   │           └── SKILL.md
+│   └── skills/
+│       ├── java/
+│       │   └── mh-java-clean-code/
+│       │       └── SKILL.md
+│       └── javascript/
+│           └── extjs/
+│               └── mh-extjs-components/
+│                   ├── SKILL.md
+│                   └── references/
+│                       └── grid-patterns.md
 ├── web/
 │   ├── build-manifest.mjs             # Node.js Build-Skript (Zero Dependencies)
 │   ├── index.html
@@ -44,8 +45,8 @@ Die Anwendung:
   * Enthält ein Ordner keine `SKILL.md`, ist er ein reiner **Kategorie-Ordner** (dient nur der Gliederung im UI, wird beim Kopieren ignoriert). Es werden keine Kategorie-`README.md`-Dateien ausgewertet.
 * **Namenskonvention (Agent-Skills-Standard):**
   * Erlaubte Zeichen für Skill-Ordnernamen: ausschließlich Kleinbuchstaben, Zahlen und Bindestriche (`/^[a-z0-9-]+$/`, keine Unterstriche).
-  * Workflows unter `workflows/` müssen mit `mh-wf-` beginnen.
-  * Baustein-Skills unter `skills/` müssen mit `mh-` beginnen (und dürfen nicht mit `mh-wf-` beginnen).
+  * Workflows unter `_SKILLS/workflows/` müssen mit `mh-wf-` beginnen.
+  * Baustein-Skills unter `_SKILLS/skills/` müssen mit `mh-` beginnen (und dürfen nicht mit `mh-wf-` beginnen).
   * Jeder Skill-Ordnername muss **repo-weit eindeutig** sein, da beim Kopieren ins Zielprojekt alle Kategorie-Ebenen abgeflacht werden.
 * **YAML-Frontmatter:**
   * Jede `SKILL.md` muss ein YAML-Frontmatter mit mindestens `name` und `description` enthalten (Keys immer auf Englisch).
@@ -72,6 +73,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
+const CATALOG_ROOT = path.join(ROOT, '_SKILLS');
 // Leer lassen => Frontend nutzt automatisch window.location.origin
 const DOWNLOAD_BASE_URL = (process.env.DOWNLOAD_BASE_URL || '').replace(/\/+$/, '');
 const VALID_NAME_REGEX = /^[a-z0-9-]+$/;
@@ -146,7 +148,7 @@ function scanTree(dir, type) {
         throw new Error(`Frontmatter name "${meta.name}" != Ordnername "${id}" in "${skillMdPath}"`);
       }
 
-      const repoPath = path.relative(ROOT, fullPath).replaceAll('\\', '/');
+      const repoPath = path.relative(CATALOG_ROOT, fullPath).replaceAll('\\', '/');
       const files = listFilesRecursive(fullPath);
 
       skillsMap.set(id, {
@@ -173,8 +175,8 @@ function scanTree(dir, type) {
 }
 
 const tree = {
-  workflows: scanTree(path.join(ROOT, 'workflows'), 'workflow'),
-  skills: scanTree(path.join(ROOT, 'skills'), 'skill')
+  workflows: scanTree(path.join(CATALOG_ROOT, 'workflows'), 'workflow'),
+  skills: scanTree(path.join(CATALOG_ROOT, 'skills'), 'skill')
 };
 
 // Direkte Abhängigkeiten über Backticks (`mh-...`) erkennen
@@ -329,32 +331,17 @@ curl -fsSL "https://skills.example.de/workflows/java/mh-wf-java-feature/SKILL.md
 
 ### `Dockerfile` (Multi-Stage)
 ```dockerfile
-# Stage 1: Skills validieren und manifest.json generieren
 FROM node:22-alpine AS builder
 WORKDIR /app
-
+COPY package.json package-lock.json ./
+RUN npm ci --include=dev --ignore-scripts
+COPY . .
 ARG DOWNLOAD_BASE_URL=""
-ENV DOWNLOAD_BASE_URL=$DOWNLOAD_BASE_URL
+RUN DOWNLOAD_BASE_URL="$DOWNLOAD_BASE_URL" npm run build
 
-COPY workflows ./workflows
-COPY skills ./skills
-COPY web/build-manifest.mjs ./web/build-manifest.mjs
-
-RUN node web/build-manifest.mjs
-
-# Stage 2: Schlanker statischer Nginx
 FROM nginx:alpine
-
-# Frontend + generiertes Manifest
-COPY web/index.html web/app.js web/style.css /usr/share/nginx/html/
-COPY --from=builder /app/dist/manifest.json /usr/share/nginx/html/manifest.json
-
-# Original-Ordner für Vorschau & curl-Downloads
-COPY workflows /usr/share/nginx/html/workflows
-COPY skills /usr/share/nginx/html/skills
-
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
+COPY --from=builder /app/dist/ /usr/share/nginx/html/
 EXPOSE 80
 ```
 
