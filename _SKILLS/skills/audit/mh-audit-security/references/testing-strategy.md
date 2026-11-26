@@ -1,0 +1,2 @@
+# Testprüfung
+Ordne kritische Invarianten und Fehlerzweige vorhandenen Tests zu. Prüfe Assertions, Testdaten, Mocks, Isolation und Negativfälle. Suche Tests, die ohne Ausführung relevanter Logik bestehen, instabile Zeit- oder Nebenläufigkeitsannahmen und fehlende Regressionsabdeckung. Empfehle gezielte Unit-, Integrations-, eigenschaftsbasierte oder Fuzz-Tests mit synthetischen Daten. Ein fehlender Test ist eine Abdeckungslücke, kein Fehlerbeweis. Erstelle oder starte im Standard-Berichtsmodus keine Tests; kennzeichne vorgeschlagene Befehle als nicht ausgeführt.

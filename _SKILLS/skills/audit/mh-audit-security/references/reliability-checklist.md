@@ -1,0 +1,2 @@
+# Zuverlässigkeitsprüfung
+Prüfe Nebenläufigkeit, Sperren, Transaktionsgrenzen, Wiederholungsversuche, Zeitlimits, Abbruch, Idempotenz, Teilausfälle, Aufräumarbeiten, Ressourcenlebensdauer und Wiederherstellung. Verfolge Zustände vor und nach Unterbrechungen; untersuche doppelte Zustellung und Ereignisse in falscher Reihenfolge. Prüfe Fehlerweitergabe und Beobachtbarkeit ohne sensible Daten. Belege eine tatsächlich mögliche Ausführungsreihenfolge oder Fehlerbedingung anhand des Codes; unterstelle keine unmögliche Parallelität. Empfehle begrenzte synthetische Tests.

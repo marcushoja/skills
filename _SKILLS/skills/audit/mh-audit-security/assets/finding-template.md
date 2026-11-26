@@ -1,0 +1,17 @@
+# Befund-ID – Titel
+- Kategorie / Modul:
+- Schweregrad und Begründung:
+- Belegsicherheit:
+- Status: bestätigt | wahrscheinlich | ungeprüft | widerlegt
+- Revision und Datei:Zeilenbereiche:
+- Sollverhalten und dessen Grundlage:
+- Istverhalten:
+- Grundursache und erreichbarer Pfad:
+- Voraussetzungen und Auswirkungen:
+- Belege (geschwärzt):
+- Geprüfte Gegenbelege / Schutzmaßnahmen:
+- Verifikationsmethode und Ergebnis (statisch oder autorisiert dynamisch):
+- Verwandte Vorkommen:
+- Empfohlene Fehlerbehebung (nicht umgesetzt):
+- Vorgeschlagener Regressionstest (ohne Freigabe nicht ausgeführt):
+- Verbleibende Unsicherheit:

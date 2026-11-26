@@ -1,0 +1,2 @@
+# Architekturprüfung
+Kartiere Komponenten, Zuständigkeiten, Schnittstellenverträge, Schemaentwicklung, Migrationen, Konfigurationsgrenzen und Abhängigkeitsrichtungen. Untersuche inkonsistente Validierung oder Autorisierung, inkompatible API-Versionen, Migrationsreihenfolgen, fehlende Rückrollannahmen, zyklische Abhängigkeiten und dienstübergreifende Konsistenz. Verknüpfe jeden Befund mit einem konkreten Fehler oder Risiko statt subjektiven Designvorlieben. Prüfe Kompatibilitätsanforderungen und tatsächliche Verbraucher. Trenne Wartbarkeitsverbesserungen von Defekten.

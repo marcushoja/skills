@@ -1,0 +1,2 @@
+# Leistungsprüfung
+Ermittle häufig ausgeführte Pfade und Lastannahmen. Prüfe wiederholte Abfragen, unbegrenzte Schleifen oder Sammlungen, blockierende E/A, unnötige Serialisierung, Cache-Invalidierung, Ressourcenlecks und algorithmische Komplexität. Verfolge Eingabegrenzen und Aufrufhäufigkeit. Trenne belegte Komplexitäts- oder Ressourcenprobleme von Hypothesen, die Profiling benötigen. Erfinde keine Benchmarks oder Latenzwerte. Empfehle repräsentative Messungen und Ressourcenlimits, sofern die Belege dies stützen.

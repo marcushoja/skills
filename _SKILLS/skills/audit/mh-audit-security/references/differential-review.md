@@ -1,0 +1,2 @@
+# Änderungsprüfung
+Ermittle explizite Basis- und Zielrevision. Fehlen diese, nutze nur falls passend den Arbeitsbaum gegenüber HEAD und nenne die Annahme. Untersuche vorgemerkte, nicht vorgemerkte und relevante nicht versionierte Änderungen ohne Modifikation. Verfolge betroffene Aufrufer, Migrationen, Konfigurationen und Tests über den Diff hinaus. Trenne neu eingeführte von bestehenden Defekten und unklarer Zuordnung. Prüfe Löschungen und Umbenennungen. Dokumentiere Basis und Ziel; setze Benutzeränderungen niemals zurück und wechsle nicht eigenmächtig den Arbeitsstand.
