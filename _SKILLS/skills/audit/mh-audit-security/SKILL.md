@@ -1,5 +1,5 @@
 ---
-name: deep-codebase-audit
+name: mh-audit-security
 description: Prüft autorisierte Code-Repositories systematisch auf Sicherheitslücken, Funktionsfehler, Zuverlässigkeit, Architektur, Leistung, Abhängigkeiten und Testlücken. Für Audits, Code-Reviews, Regressionsanalysen und Risikobewertungen. Liefert belegte Befunde ohne Änderungen am Quellcode.
 ---
 # Tiefgehende Codebasis-Prüfung
